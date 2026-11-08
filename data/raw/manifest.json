@@ -1,0 +1,389 @@
+{
+  "fetched_at": "2026-11-08T12:11:16+00:00",
+  "license": {
+    "url": "https://creativecommons.org/licenses/by-sa/4.0/deed.de",
+    "text": "Creative Commons Attribution-Share Alike 4.0"
+  },
+  "pages": [
+    {
+      "title": "Einführung in SQL: Arbeiten mit JOIN",
+      "chapter": "Arbeiten mit JOIN",
+      "slug": "arbeiten-mit-join",
+      "pageid": 68746,
+      "revid": 1055804,
+      "url": "https://de.wikibooks.org/wiki/Einf%C3%BChrung_in_SQL:_Arbeiten_mit_JOIN",
+      "permalink": "https://de.wikibooks.org/w/index.php?oldid=1055804",
+      "history_url": "https://de.wikibooks.org/w/index.php?title=Einf%C3%BChrung_in_SQL:_Arbeiten_mit_JOIN&action=history"
+    },
+    {
+      "title": "Einführung in SQL: Ausführliche SELECT-Struktur",
+      "chapter": "Ausführliche SELECT-Struktur",
+      "slug": "ausfuehrliche-select-struktur",
+      "pageid": 68064,
+      "revid": 903331,
+      "url": "https://de.wikibooks.org/wiki/Einf%C3%BChrung_in_SQL:_Ausf%C3%BChrliche_SELECT-Struktur",
+      "permalink": "https://de.wikibooks.org/w/index.php?oldid=903331",
+      "history_url": "https://de.wikibooks.org/w/index.php?title=Einf%C3%BChrung_in_SQL:_Ausf%C3%BChrliche_SELECT-Struktur&action=history"
+    },
+    {
+      "title": "Einführung in SQL: Befehlsreferenz",
+      "chapter": "Befehlsreferenz",
+      "slug": "befehlsreferenz",
+      "pageid": 6383,
+      "revid": 779910,
+      "url": "https://de.wikibooks.org/wiki/Einf%C3%BChrung_in_SQL:_Befehlsreferenz",
+      "permalink": "https://de.wikibooks.org/w/index.php?oldid=779910",
+      "history_url": "https://de.wikibooks.org/w/index.php?title=Einf%C3%BChrung_in_SQL:_Befehlsreferenz&action=history"
+    },
+    {
+      "title": "Einführung in SQL: Beispieldatenbank",
+      "chapter": "Beispieldatenbank",
+      "slug": "beispieldatenbank",
+      "pageid": 34146,
+      "revid": 832386,
+      "url": "https://de.wikibooks.org/wiki/Einf%C3%BChrung_in_SQL:_Beispieldatenbank",
+      "permalink": "https://de.wikibooks.org/w/index.php?oldid=832386",
+      "history_url": "https://de.wikibooks.org/w/index.php?title=Einf%C3%BChrung_in_SQL:_Beispieldatenbank&action=history"
+    },
+    {
+      "title": "Einführung in SQL: Berechnete Spalten",
+      "chapter": "Berechnete Spalten",
+      "slug": "berechnete-spalten",
+      "pageid": 51123,
+      "revid": 1055792,
+      "url": "https://de.wikibooks.org/wiki/Einf%C3%BChrung_in_SQL:_Berechnete_Spalten",
+      "permalink": "https://de.wikibooks.org/w/index.php?oldid=1055792",
+      "history_url": "https://de.wikibooks.org/w/index.php?title=Einf%C3%BChrung_in_SQL:_Berechnete_Spalten&action=history"
+    },
+    {
+      "title": "Einführung in SQL: DCL - Zugriffsrechte",
+      "chapter": "DCL - Zugriffsrechte",
+      "slug": "dcl-zugriffsrechte",
+      "pageid": 68632,
+      "revid": 1055798,
+      "url": "https://de.wikibooks.org/wiki/Einf%C3%BChrung_in_SQL:_DCL_-_Zugriffsrechte",
+      "permalink": "https://de.wikibooks.org/w/index.php?oldid=1055798",
+      "history_url": "https://de.wikibooks.org/w/index.php?title=Einf%C3%BChrung_in_SQL:_DCL_-_Zugriffsrechte&action=history"
+    },
+    {
+      "title": "Einführung in SQL: DDL - Einzelheiten",
+      "chapter": "DDL - Einzelheiten",
+      "slug": "ddl-einzelheiten",
+      "pageid": 68684,
+      "revid": 1055801,
+      "url": "https://de.wikibooks.org/wiki/Einf%C3%BChrung_in_SQL:_DDL_-_Einzelheiten",
+      "permalink": "https://de.wikibooks.org/w/index.php?oldid=1055801",
+      "history_url": "https://de.wikibooks.org/w/index.php?title=Einf%C3%BChrung_in_SQL:_DDL_-_Einzelheiten&action=history"
+    },
+    {
+      "title": "Einführung in SQL: DDL - Struktur der Datenbank",
+      "chapter": "DDL - Struktur der Datenbank",
+      "slug": "ddl-struktur-der-datenbank",
+      "pageid": 68593,
+      "revid": 1055797,
+      "url": "https://de.wikibooks.org/wiki/Einf%C3%BChrung_in_SQL:_DDL_-_Struktur_der_Datenbank",
+      "permalink": "https://de.wikibooks.org/w/index.php?oldid=1055797",
+      "history_url": "https://de.wikibooks.org/w/index.php?title=Einf%C3%BChrung_in_SQL:_DDL_-_Struktur_der_Datenbank&action=history"
+    },
+    {
+      "title": "Einführung in SQL: DML (1) - Daten abfragen",
+      "chapter": "DML (1) - Daten abfragen",
+      "slug": "dml-1-daten-abfragen",
+      "pageid": 35285,
+      "revid": 1055789,
+      "url": "https://de.wikibooks.org/wiki/Einf%C3%BChrung_in_SQL:_DML_%281%29_-_Daten_abfragen",
+      "permalink": "https://de.wikibooks.org/w/index.php?oldid=1055789",
+      "history_url": "https://de.wikibooks.org/w/index.php?title=Einf%C3%BChrung_in_SQL:_DML_%281%29_-_Daten_abfragen&action=history"
+    },
+    {
+      "title": "Einführung in SQL: DML (2) - Daten speichern",
+      "chapter": "DML (2) - Daten speichern",
+      "slug": "dml-2-daten-speichern",
+      "pageid": 38325,
+      "revid": 1055790,
+      "url": "https://de.wikibooks.org/wiki/Einf%C3%BChrung_in_SQL:_DML_%282%29_-_Daten_speichern",
+      "permalink": "https://de.wikibooks.org/w/index.php?oldid=1055790",
+      "history_url": "https://de.wikibooks.org/w/index.php?title=Einf%C3%BChrung_in_SQL:_DML_%282%29_-_Daten_speichern&action=history"
+    },
+    {
+      "title": "Einführung in SQL: Datentypen",
+      "chapter": "Datentypen",
+      "slug": "datentypen",
+      "pageid": 50645,
+      "revid": 931552,
+      "url": "https://de.wikibooks.org/wiki/Einf%C3%BChrung_in_SQL:_Datentypen",
+      "permalink": "https://de.wikibooks.org/w/index.php?oldid=931552",
+      "history_url": "https://de.wikibooks.org/w/index.php?title=Einf%C3%BChrung_in_SQL:_Datentypen&action=history"
+    },
+    {
+      "title": "Einführung in SQL: Eigene Funktionen",
+      "chapter": "Eigene Funktionen",
+      "slug": "eigene-funktionen",
+      "pageid": 69262,
+      "revid": 1055808,
+      "url": "https://de.wikibooks.org/wiki/Einf%C3%BChrung_in_SQL:_Eigene_Funktionen",
+      "permalink": "https://de.wikibooks.org/w/index.php?oldid=1055808",
+      "history_url": "https://de.wikibooks.org/w/index.php?title=Einf%C3%BChrung_in_SQL:_Eigene_Funktionen&action=history"
+    },
+    {
+      "title": "Einführung in SQL: Ein Einstieg",
+      "chapter": "Ein Einstieg",
+      "slug": "ein-einstieg",
+      "pageid": 68395,
+      "revid": 1090271,
+      "url": "https://de.wikibooks.org/wiki/Einf%C3%BChrung_in_SQL:_Ein_Einstieg",
+      "permalink": "https://de.wikibooks.org/w/index.php?oldid=1090271",
+      "history_url": "https://de.wikibooks.org/w/index.php?title=Einf%C3%BChrung_in_SQL:_Ein_Einstieg&action=history"
+    },
+    {
+      "title": "Einführung in SQL: Einfache Tabellenverknüpfung",
+      "chapter": "Einfache Tabellenverknüpfung",
+      "slug": "einfache-tabellenverknuepfung",
+      "pageid": 68745,
+      "revid": 1055803,
+      "url": "https://de.wikibooks.org/wiki/Einf%C3%BChrung_in_SQL:_Einfache_Tabellenverkn%C3%BCpfung",
+      "permalink": "https://de.wikibooks.org/w/index.php?oldid=1055803",
+      "history_url": "https://de.wikibooks.org/w/index.php?title=Einf%C3%BChrung_in_SQL:_Einfache_Tabellenverkn%C3%BCpfung&action=history"
+    },
+    {
+      "title": "Einführung in SQL: Einleitung",
+      "chapter": "Einleitung",
+      "slug": "einleitung",
+      "pageid": 34233,
+      "revid": 1055788,
+      "url": "https://de.wikibooks.org/wiki/Einf%C3%BChrung_in_SQL:_Einleitung",
+      "permalink": "https://de.wikibooks.org/w/index.php?oldid=1055788",
+      "history_url": "https://de.wikibooks.org/w/index.php?title=Einf%C3%BChrung_in_SQL:_Einleitung&action=history"
+    },
+    {
+      "title": "Einführung in SQL: Erstellen von Views",
+      "chapter": "Erstellen von Views",
+      "slug": "erstellen-von-views",
+      "pageid": 57100,
+      "revid": 1055793,
+      "url": "https://de.wikibooks.org/wiki/Einf%C3%BChrung_in_SQL:_Erstellen_von_Views",
+      "permalink": "https://de.wikibooks.org/w/index.php?oldid=1055793",
+      "history_url": "https://de.wikibooks.org/w/index.php?title=Einf%C3%BChrung_in_SQL:_Erstellen_von_Views&action=history"
+    },
+    {
+      "title": "Einführung in SQL: Fremdschlüssel-Beziehungen",
+      "chapter": "Fremdschlüssel-Beziehungen",
+      "slug": "fremdschluessel-beziehungen",
+      "pageid": 51876,
+      "revid": 918675,
+      "url": "https://de.wikibooks.org/wiki/Einf%C3%BChrung_in_SQL:_Fremdschl%C3%BCssel-Beziehungen",
+      "permalink": "https://de.wikibooks.org/w/index.php?oldid=918675",
+      "history_url": "https://de.wikibooks.org/w/index.php?title=Einf%C3%BChrung_in_SQL:_Fremdschl%C3%BCssel-Beziehungen&action=history"
+    },
+    {
+      "title": "Einführung in SQL: Funktionen",
+      "chapter": "Funktionen",
+      "slug": "funktionen",
+      "pageid": 51099,
+      "revid": 1055791,
+      "url": "https://de.wikibooks.org/wiki/Einf%C3%BChrung_in_SQL:_Funktionen",
+      "permalink": "https://de.wikibooks.org/w/index.php?oldid=1055791",
+      "history_url": "https://de.wikibooks.org/w/index.php?title=Einf%C3%BChrung_in_SQL:_Funktionen&action=history"
+    },
+    {
+      "title": "Einführung in SQL: Funktionen (2)",
+      "chapter": "Funktionen (2)",
+      "slug": "funktionen-2",
+      "pageid": 68742,
+      "revid": 1055802,
+      "url": "https://de.wikibooks.org/wiki/Einf%C3%BChrung_in_SQL:_Funktionen_%282%29",
+      "permalink": "https://de.wikibooks.org/w/index.php?oldid=1055802",
+      "history_url": "https://de.wikibooks.org/w/index.php?title=Einf%C3%BChrung_in_SQL:_Funktionen_%282%29&action=history"
+    },
+    {
+      "title": "Einführung in SQL: Gruppierungen",
+      "chapter": "Gruppierungen",
+      "slug": "gruppierungen",
+      "pageid": 66847,
+      "revid": 1055794,
+      "url": "https://de.wikibooks.org/wiki/Einf%C3%BChrung_in_SQL:_Gruppierungen",
+      "permalink": "https://de.wikibooks.org/w/index.php?oldid=1055794",
+      "history_url": "https://de.wikibooks.org/w/index.php?title=Einf%C3%BChrung_in_SQL:_Gruppierungen&action=history"
+    },
+    {
+      "title": "Einführung in SQL: Mehr zu JOIN",
+      "chapter": "Mehr zu JOIN",
+      "slug": "mehr-zu-join",
+      "pageid": 68750,
+      "revid": 1055806,
+      "url": "https://de.wikibooks.org/wiki/Einf%C3%BChrung_in_SQL:_Mehr_zu_JOIN",
+      "permalink": "https://de.wikibooks.org/w/index.php?oldid=1055806",
+      "history_url": "https://de.wikibooks.org/w/index.php?title=Einf%C3%BChrung_in_SQL:_Mehr_zu_JOIN&action=history"
+    },
+    {
+      "title": "Einführung in SQL: Mehrere Tabellen",
+      "chapter": "Mehrere Tabellen",
+      "slug": "mehrere-tabellen",
+      "pageid": 67519,
+      "revid": 955924,
+      "url": "https://de.wikibooks.org/wiki/Einf%C3%BChrung_in_SQL:_Mehrere_Tabellen",
+      "permalink": "https://de.wikibooks.org/w/index.php?oldid=955924",
+      "history_url": "https://de.wikibooks.org/w/index.php?title=Einf%C3%BChrung_in_SQL:_Mehrere_Tabellen&action=history"
+    },
+    {
+      "title": "Einführung in SQL: Normalisierung",
+      "chapter": "Normalisierung",
+      "slug": "normalisierung",
+      "pageid": 77585,
+      "revid": 944511,
+      "url": "https://de.wikibooks.org/wiki/Einf%C3%BChrung_in_SQL:_Normalisierung",
+      "permalink": "https://de.wikibooks.org/w/index.php?oldid=944511",
+      "history_url": "https://de.wikibooks.org/w/index.php?title=Einf%C3%BChrung_in_SQL:_Normalisierung&action=history"
+    },
+    {
+      "title": "Einführung in SQL: Nützliche Erweiterungen",
+      "chapter": "Nützliche Erweiterungen",
+      "slug": "nuetzliche-erweiterungen",
+      "pageid": 68166,
+      "revid": 1055795,
+      "url": "https://de.wikibooks.org/wiki/Einf%C3%BChrung_in_SQL:_N%C3%BCtzliche_Erweiterungen",
+      "permalink": "https://de.wikibooks.org/w/index.php?oldid=1055795",
+      "history_url": "https://de.wikibooks.org/w/index.php?title=Einf%C3%BChrung_in_SQL:_N%C3%BCtzliche_Erweiterungen&action=history"
+    },
+    {
+      "title": "Einführung in SQL: OUTER JOIN",
+      "chapter": "OUTER JOIN",
+      "slug": "outer-join",
+      "pageid": 68748,
+      "revid": 1055805,
+      "url": "https://de.wikibooks.org/wiki/Einf%C3%BChrung_in_SQL:_OUTER_JOIN",
+      "permalink": "https://de.wikibooks.org/w/index.php?oldid=1055805",
+      "history_url": "https://de.wikibooks.org/w/index.php?title=Einf%C3%BChrung_in_SQL:_OUTER_JOIN&action=history"
+    },
+    {
+      "title": "Einführung in SQL: Programmierung",
+      "chapter": "Programmierung",
+      "slug": "programmierung",
+      "pageid": 68376,
+      "revid": 779898,
+      "url": "https://de.wikibooks.org/wiki/Einf%C3%BChrung_in_SQL:_Programmierung",
+      "permalink": "https://de.wikibooks.org/w/index.php?oldid=779898",
+      "history_url": "https://de.wikibooks.org/w/index.php?title=Einf%C3%BChrung_in_SQL:_Programmierung&action=history"
+    },
+    {
+      "title": "Einführung in SQL: Prozeduren",
+      "chapter": "Prozeduren",
+      "slug": "prozeduren",
+      "pageid": 69263,
+      "revid": 1055809,
+      "url": "https://de.wikibooks.org/wiki/Einf%C3%BChrung_in_SQL:_Prozeduren",
+      "permalink": "https://de.wikibooks.org/w/index.php?oldid=1055809",
+      "history_url": "https://de.wikibooks.org/w/index.php?title=Einf%C3%BChrung_in_SQL:_Prozeduren&action=history"
+    },
+    {
+      "title": "Einführung in SQL: Relationale Datenbanken",
+      "chapter": "Relationale Datenbanken",
+      "slug": "relationale-datenbanken",
+      "pageid": 34565,
+      "revid": 782742,
+      "url": "https://de.wikibooks.org/wiki/Einf%C3%BChrung_in_SQL:_Relationale_Datenbanken",
+      "permalink": "https://de.wikibooks.org/w/index.php?oldid=782742",
+      "history_url": "https://de.wikibooks.org/w/index.php?title=Einf%C3%BChrung_in_SQL:_Relationale_Datenbanken&action=history"
+    },
+    {
+      "title": "Einführung in SQL: SQL-Befehle",
+      "chapter": "SQL-Befehle",
+      "slug": "sql-befehle",
+      "pageid": 39895,
+      "revid": 942857,
+      "url": "https://de.wikibooks.org/wiki/Einf%C3%BChrung_in_SQL:_SQL-Befehle",
+      "permalink": "https://de.wikibooks.org/w/index.php?oldid=942857",
+      "history_url": "https://de.wikibooks.org/w/index.php?title=Einf%C3%BChrung_in_SQL:_SQL-Befehle&action=history"
+    },
+    {
+      "title": "Einführung in SQL: Schlüsselwörter",
+      "chapter": "Schlüsselwörter",
+      "slug": "schluesselwoerter",
+      "pageid": 68787,
+      "revid": 944011,
+      "url": "https://de.wikibooks.org/wiki/Einf%C3%BChrung_in_SQL:_Schl%C3%BCsselw%C3%B6rter",
+      "permalink": "https://de.wikibooks.org/w/index.php?oldid=944011",
+      "history_url": "https://de.wikibooks.org/w/index.php?title=Einf%C3%BChrung_in_SQL:_Schl%C3%BCsselw%C3%B6rter&action=history"
+    },
+    {
+      "title": "Einführung in SQL: TCL - Ablaufsteuerung",
+      "chapter": "TCL - Ablaufsteuerung",
+      "slug": "tcl-ablaufsteuerung",
+      "pageid": 68633,
+      "revid": 1055800,
+      "url": "https://de.wikibooks.org/wiki/Einf%C3%BChrung_in_SQL:_TCL_-_Ablaufsteuerung",
+      "permalink": "https://de.wikibooks.org/w/index.php?oldid=1055800",
+      "history_url": "https://de.wikibooks.org/w/index.php?title=Einf%C3%BChrung_in_SQL:_TCL_-_Ablaufsteuerung&action=history"
+    },
+    {
+      "title": "Einführung in SQL: Tabellenstruktur der Beispieldatenbank",
+      "chapter": "Tabellenstruktur der Beispieldatenbank",
+      "slug": "tabellenstruktur-der-beispieldatenbank",
+      "pageid": 34235,
+      "revid": 915878,
+      "url": "https://de.wikibooks.org/wiki/Einf%C3%BChrung_in_SQL:_Tabellenstruktur_der_Beispieldatenbank",
+      "permalink": "https://de.wikibooks.org/w/index.php?oldid=915878",
+      "history_url": "https://de.wikibooks.org/w/index.php?title=Einf%C3%BChrung_in_SQL:_Tabellenstruktur_der_Beispieldatenbank&action=history"
+    },
+    {
+      "title": "Einführung in SQL: Testdaten erzeugen",
+      "chapter": "Testdaten erzeugen",
+      "slug": "testdaten-erzeugen",
+      "pageid": 69669,
+      "revid": 1055811,
+      "url": "https://de.wikibooks.org/wiki/Einf%C3%BChrung_in_SQL:_Testdaten_erzeugen",
+      "permalink": "https://de.wikibooks.org/w/index.php?oldid=1055811",
+      "history_url": "https://de.wikibooks.org/w/index.php?title=Einf%C3%BChrung_in_SQL:_Testdaten_erzeugen&action=history"
+    },
+    {
+      "title": "Einführung in SQL: Tipps und Tricks",
+      "chapter": "Tipps und Tricks",
+      "slug": "tipps-und-tricks",
+      "pageid": 70627,
+      "revid": 779903,
+      "url": "https://de.wikibooks.org/wiki/Einf%C3%BChrung_in_SQL:_Tipps_und_Tricks",
+      "permalink": "https://de.wikibooks.org/w/index.php?oldid=779903",
+      "history_url": "https://de.wikibooks.org/w/index.php?title=Einf%C3%BChrung_in_SQL:_Tipps_und_Tricks&action=history"
+    },
+    {
+      "title": "Einführung in SQL: Trigger",
+      "chapter": "Trigger",
+      "slug": "trigger",
+      "pageid": 69264,
+      "revid": 1055810,
+      "url": "https://de.wikibooks.org/wiki/Einf%C3%BChrung_in_SQL:_Trigger",
+      "permalink": "https://de.wikibooks.org/w/index.php?oldid=1055810",
+      "history_url": "https://de.wikibooks.org/w/index.php?title=Einf%C3%BChrung_in_SQL:_Trigger&action=history"
+    },
+    {
+      "title": "Einführung in SQL: Unterabfragen",
+      "chapter": "Unterabfragen",
+      "slug": "unterabfragen",
+      "pageid": 67729,
+      "revid": 1055799,
+      "url": "https://de.wikibooks.org/wiki/Einf%C3%BChrung_in_SQL:_Unterabfragen",
+      "permalink": "https://de.wikibooks.org/w/index.php?oldid=1055799",
+      "history_url": "https://de.wikibooks.org/w/index.php?title=Einf%C3%BChrung_in_SQL:_Unterabfragen&action=history"
+    },
+    {
+      "title": "Einführung in SQL: WHERE-Klausel im Detail",
+      "chapter": "WHERE-Klausel im Detail",
+      "slug": "where-klausel-im-detail",
+      "pageid": 68244,
+      "revid": 1055796,
+      "url": "https://de.wikibooks.org/wiki/Einf%C3%BChrung_in_SQL:_WHERE-Klausel_im_Detail",
+      "permalink": "https://de.wikibooks.org/w/index.php?oldid=1055796",
+      "history_url": "https://de.wikibooks.org/w/index.php?title=Einf%C3%BChrung_in_SQL:_WHERE-Klausel_im_Detail&action=history"
+    },
+    {
+      "title": "Einführung in SQL: Änderung der Datenbankstruktur",
+      "chapter": "Änderung der Datenbankstruktur",
+      "slug": "aenderung-der-datenbankstruktur",
+      "pageid": 68999,
+      "revid": 1055807,
+      "url": "https://de.wikibooks.org/wiki/Einf%C3%BChrung_in_SQL:_%C3%84nderung_der_Datenbankstruktur",
+      "permalink": "https://de.wikibooks.org/w/index.php?oldid=1055807",
+      "history_url": "https://de.wikibooks.org/w/index.php?title=Einf%C3%BChrung_in_SQL:_%C3%84nderung_der_Datenbankstruktur&action=history"
+    }
+  ]
+}

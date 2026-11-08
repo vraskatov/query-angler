@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# Daten: Rohdaten (data/raw/) werden versioniert,
+# alles daraus Abgeleitete lässt sich jederzeit neu erzeugen.
+data/clean/
+data/index/
+
+# Node
+node_modules/
+dist/
+
+# IDE
+.idea/
+.vscode/
+
+# Lokale Einstellungen und Geheimnisse
+.env

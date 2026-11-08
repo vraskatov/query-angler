@@ -1,0 +1,32 @@
+<div class="mw-content-ltr mw-parser-output" lang="de" dir="ltr">
+<!-- Kommentar aus dem Parser -->
+<table class="noprint" style="width:100%"><tr><td>zum Anfang des Inhaltsverzeichnisses</td><td>zurück zu: Zielgruppe</td><td>weiter zu: Einleitung</td></tr></table>
+<p>Seitentitel: Einführung in SQL: Einfache Abfragen</p>
+<p>(Einführung in SQL: Einfache Abfragen)</p>
+<table style="float:right"><tr><td>Wikipedia hat einen Artikel zum Thema: <a href="#">SQL</a></td></tr></table>
+<p>In diesem Kapitel geht es um den Befehl <code>SELECT</code> und seine <b>wichtigsten</b> Klauseln.</p>
+<div class="mw-heading mw-heading2"><h2 id="Grundform">Grundform</h2><span class="mw-editsection">[<a href="#">Bearbeiten</a>]</span></div>
+<p>Die einfachste Abfrage liest alle Spalten:</p>
+<div class="mw-highlight mw-highlight-lang-sql mw-content-ltr" dir="ltr"><pre><span></span><span class="k">SELECT</span><span class="w"> </span><span class="o">*</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">Mitarbeiter</span><span class="p">;</span>
+</pre></div>
+<div class="mw-heading mw-heading3"><h3 id="Spalten_auswählen">Spalten auswählen</h3></div>
+<p>Wichtige Punkte:</p>
+<ul>
+<li>Spalten werden durch Kommas getrennt.
+<ul><li>Das letzte Element hat kein Komma.</li></ul>
+</li>
+<li>Aliasnamen vergibt man mit <code>AS</code>.</li>
+</ul>
+<ol><li>Erst FROM</li><li>dann SELECT</li></ol>
+<dl><dd><pre>SELECT Name AS N
+  FROM Mitarbeiter AS m;</pre></dd></dl>
+<table class="wikitable">
+<tr><th>Spalte</th><th>Typ</th></tr>
+<tr><td>ID</td><td>INTEGER</td></tr>
+<tr><td>Name</td><td>VARCHAR(30)</td></tr>
+</table>
+<figure><img src="x.png"><figcaption>Bild</figcaption></figure>
+<p>Hinweis<sup class="reference"><a href="#cite_note-1">[1]</a></sup> zum Schluss.</p>
+<div class="mw-references-wrap"><ol class="references"><li>Einzelnachweis</li></ol></div>
+</div>
