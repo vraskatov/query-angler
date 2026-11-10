@@ -101,6 +101,47 @@ Bereinigung überführt sie in Felder der Blöcke:
 | nachgebaute Überschriften (69×) | echte Überschriften | Das Chunking kann an ihnen schneiden. |
 | Hinweiskästen | Absatz „Hinweis: …“ | statt einer einzeiligen Tabelle |
 
+## Chunking
+
+Ein Chunk ist zugleich die Einheit der Suche, der Kontext für das Sprachmodell und die Einheit
+der Quellenangabe. Er muss groß genug sein, um seinen Zusammenhang mitzubringen, und klein genug
+für ein trennscharfes Embedding und einen knappen Prompt.
+
+### Regeln
+
+Geschnitten wird an der Gliederung des Buchs, nicht nach fester Zeichenzahl:
+
+1. **Abschnitte:** An jeder Überschrift beginnt ein Abschnitt. Er kennt seinen Pfad, etwa
+   `Arbeiten mit JOIN > WHERE-Klausel bei JOINs`.
+2. **Zusammenfassen:** Kleine Unterabschnitte (unter 400 Zeichen) werden mit dem vorigen
+   zusammengefasst, solange sie im selben Hauptabschnitt liegen und das Ergebnis höchstens 1500
+   Zeichen hat. Ihre Überschriften bleiben im Text sichtbar.
+3. **Teilen:** Größere Abschnitte werden an Blockgrenzen geteilt. Dabei bleiben zusammen:
+   ein Codeblock mit dem Absatz davor und seiner Ausgabe, sowie ein Absatz, der mit einem
+   Doppelpunkt endet, mit dem, was er ankündigt. Ein Codeblock wird nie zerschnitten.
+4. **Übungen und Lösungen** bilden je eigene Chunks und tragen `role` und `exercise` in den
+   Metadaten. Lösungen lassen sich so ausblenden, wenn der Tutor nur Hinweise geben soll.
+5. **Kopf:** Jeder Chunk beginnt mit Kapitel und Abschnittspfad. Ein Abschnitt wie „Beispiel“
+   ist für sich genommen nicht einzuordnen, mit Pfad schon. Das hilft dem Embedding und dem
+   Sprachmodell.
+6. **Negativbeispiele** stehen im Chunk-Text ausdrücklich als „Negativbeispiel (fehlerhaft oder
+   nicht empfohlen)“, damit das Modell sie nicht als Lösung übernimmt.
+
+Auf Überlappung zwischen Chunks wird verzichtet: Es wird nur an Blockgrenzen geschnitten, und die
+Regeln unter 3. halten zusammen, was sich aufeinander bezieht.
+
+Allgemeine Text-Splitter aus Frameworks wie LangChain wurden nicht verwendet. Sie kennen weder
+Übungsrollen noch Negativbeispiele und können mitten in einem Codeblock schneiden.
+
+### Ergebnis
+
+896 Chunks aus 38 Kapiteln: 591 Lehrtext, 153 Übungen, 152 Lösungen. Median 689 Zeichen.
+19 Chunks enthalten ein Negativbeispiel.
+
+Gespeichert werden sie als JSON Lines (`data/chunks/chunks.jsonl`), ein Chunk pro Zeile mit `id`,
+`text` und `metadata` (Kapitel, Abschnitt, Rolle, Übungsnummer, Negativbeispiel ja/nein, URL,
+Permanentlink, Revision, Länge).
+
 ## Testbarkeit
 
 Logik und Ein-/Ausgabe sind getrennt. Bereinigung und Attribution sind reine Funktionen und werden
@@ -115,3 +156,6 @@ laufen dadurch ohne Netzwerk, auch in der CI.
   sagen, dass die Wissensbasis dazu nichts enthält.
 - In drei Tabellen des Kapitels „DDL – Einzelheiten“ steht Code in den Zellen. Er verliert bei
   der Umwandlung in Tabellenzeilen seine Zeilenumbrüche.
+- 11 Chunks sind deutlich länger als 1500 Zeichen, weil sie aus einem einzelnen großen Block
+  bestehen (lange Prozeduren, eine Tabelle aller Schlüsselwörter). Sie werden nicht zerschnitten.
+  Ob das gewählte Embedding-Modell sie vollständig verarbeitet, hängt von dessen Höchstlänge ab.

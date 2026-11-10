@@ -78,10 +78,10 @@ INLINE_TAGS = {
 CODE_DIV_CLASSES = {"mw-highlight", "mw-code"}
 
 
-def html_to_blocks(html: str) -> tuple[list[Block], Counter]:
+def html_to_blocks(html: str) -> tuple[list[Block], Counter[str]]:
     """Bereinigt das HTML und gibt (Blöcke, Statistik) zurück."""
     soup = BeautifulSoup(html, "html.parser")
-    stats: Counter = Counter()
+    stats: Counter[str] = Counter()
 
     for selector in REMOVE_SELECTORS:
         for element in soup.select(selector):
@@ -103,7 +103,9 @@ def html_to_blocks(html: str) -> tuple[list[Block], Counter]:
                 code.replace_with(text)
                 stats["entfernt: leerer Inline-Code"] += 1
 
-    root = soup.select_one(".mw-parser-output") or soup
+    root = soup.select_one(".mw-parser-output")
+    if root is None:  # z. B. kleine HTML-Schnipsel in Tests
+        root = soup
     blocks: list[Block] = []
     _walk(root, blocks, stats)
 
@@ -116,7 +118,7 @@ def html_to_blocks(html: str) -> tuple[list[Block], Counter]:
 # -- Durchlauf durch den Baum -------------------------------------------------
 
 
-def _walk(node: Tag, blocks: list[Block], stats: Counter) -> None:
+def _walk(node: Tag, blocks: list[Block], stats: Counter[str]) -> None:
     """Geht die Kinder eines Containers durch.
 
     Aufeinanderfolgender Inline-Inhalt (Text, Links, Fettdruck ...) wird zu
@@ -143,7 +145,7 @@ def _walk(node: Tag, blocks: list[Block], stats: Counter) -> None:
     flush()
 
 
-def _handle_block(tag: Tag, blocks: list[Block], stats: Counter) -> None:
+def _handle_block(tag: Tag, blocks: list[Block], stats: Counter[str]) -> None:
     name = tag.name
     classes = tag.get("class", [])
     if name in HEADINGS:
@@ -163,7 +165,7 @@ def _handle_block(tag: Tag, blocks: list[Block], stats: Counter) -> None:
     elif name == "div" and _is_example_box(tag):
         _handle_example_box(tag, blocks, stats)
     elif name in ("ul", "ol"):
-        blocks.append({"type": "list", "text": "\n".join(_list_lines(tag, depth=0))})
+        _handle_list(tag, blocks)
     elif name == "table":
         _handle_table(tag, blocks, stats)
     elif name == "dl":
@@ -204,7 +206,7 @@ def _simulated_heading_level(classes: list[str]) -> int | None:
     return None
 
 
-def _handle_collapsible(box: Tag, blocks: list[Block], stats: Counter) -> None:
+def _handle_collapsible(box: Tag, blocks: list[Block], stats: Counter[str]) -> None:
     """Aufklappbarer Kasten: Titel wird Überschrift, Inhalt normal verarbeitet."""
     title, body = box.select_one(".title"), box.select_one(".body")
     if title is not None:
@@ -218,7 +220,7 @@ def _is_example_box(div: Tag) -> bool:
     return "margin:6px 0px" in div.get("style", "") and len(_child_divs(div)) == 3
 
 
-def _handle_example_box(box: Tag, blocks: list[Block], stats: Counter) -> None:
+def _handle_example_box(box: Tag, blocks: list[Block], stats: Counter[str]) -> None:
     head, body, foot = _child_divs(box)
     border = re.search(r"border:\s*(#[0-9A-Fa-f]{6})", box.get("style", ""))
     verdict = VERDICT_BY_BORDER.get(border.group(1).upper()) if border else None
@@ -242,7 +244,8 @@ def _handle_example_box(box: Tag, blocks: list[Block], stats: Counter) -> None:
             continue
         if block["type"] == "code":
             if next_is_output:
-                block = {"type": "output", "text": block["text"]}
+                text = re.sub(r"<br\s*/?>", "", block["text"])  # maskiertes HTML im Original
+                block = {"type": "output", "text": text}
                 next_is_output = False
             else:
                 block.update(extra)
@@ -254,23 +257,70 @@ def _child_divs(tag: Tag) -> list[Tag]:
     return tag.find_all("div", recursive=False)
 
 
-def _list_lines(list_tag: Tag, depth: int) -> list[str]:
-    ordered = list_tag.name == "ol"
+def _handle_list(list_tag: Tag, blocks: list[Block]) -> None:
+    """Liste -> Listenblock. Code in einem Listenpunkt wird als eigener Codeblock
+    ausgegeben, die Liste an dieser Stelle aufgeteilt."""
     lines: list[str] = []
+    for item in _list_items(list_tag, depth=0):
+        if isinstance(item, str):
+            lines.append(item)
+            continue
+        if lines:
+            blocks.append({"type": "list", "text": "\n".join(lines)})
+            lines = []
+        blocks.append(item)
+    if lines:
+        blocks.append({"type": "list", "text": "\n".join(lines)})
+
+
+def _list_items(list_tag: Tag, depth: int) -> list[str | Block]:
+    """Zeilen einer (verschachtelten) Liste, dazwischen herausgelöste Codeblöcke."""
+    ordered = list_tag.name == "ol"
+    items: list[str | Block] = []
     for number, li in enumerate(list_tag.find_all("li", recursive=False), start=1):
         nested = li.find_all(["ul", "ol"], recursive=False)
         for sub in nested:
             sub.extract()
+        code_blocks = _extract_code_blocks(li)
         text = _norm(li.get_text())
         marker = f"{number}." if ordered else "-"
         if text:
-            lines.append(f"{'  ' * depth}{marker} {text}")
+            items.append(f"{'  ' * depth}{marker} {text}")
+        items.extend(code_blocks)
         for sub in nested:
-            lines.extend(_list_lines(sub, depth + 1))
-    return lines
+            items.extend(_list_items(sub, depth + 1))
+    return items
 
 
-def _handle_table(table: Tag, blocks: list[Block], stats: Counter) -> None:
+def _extract_code_blocks(container: Tag) -> list[Block]:
+    """Löst Codeblöcke aus einem Container heraus und gibt sie in Dokumentreihenfolge zurück."""
+    found: list[Block] = []
+    for element in container.find_all(["div", "pre"]):
+        # schon mit einem herausgelösten Elternelement entfernt?
+        if not any(parent is container for parent in element.parents):
+            continue
+        if element.name == "div" and CODE_DIV_CLASSES & set(element.get("class", [])):
+            found.append(_code_block(element.find("pre") or element, _highlight_lang(element)))
+            element.extract()
+        elif element.name == "pre":
+            found.append(_code_block(element, lang=None))
+            element.extract()
+    return _join_adjacent_code(found)
+
+
+def _join_adjacent_code(code_blocks: list[Block]) -> list[Block]:
+    """Im Wikitext eingerückte Zeilen in Listen ergeben oft je Zeile ein eigenes <pre>.
+    Aufeinanderfolgende Codeblöcke derselben Sprache werden wieder zu einem."""
+    joined: list[Block] = []
+    for block in code_blocks:
+        if joined and joined[-1]["lang"] == block["lang"]:
+            joined[-1]["text"] += "\n" + block["text"]
+        else:
+            joined.append(block)
+    return joined
+
+
+def _handle_table(table: Tag, blocks: list[Block], stats: Counter[str]) -> None:
     """Sonderformen erkennen, sonst Datentabelle als Zeilen oder Layout-Tabelle durchlaufen.
 
     Ältere Wiki-Seiten benutzen Tabellen auch nur zur Anordnung von Inhalten.
@@ -342,7 +392,7 @@ def _callout_text(table: Tag) -> str:
 # -- Nachbearbeitung der Blockliste -------------------------------------------
 
 
-def _drop_boilerplate(blocks: list[Block], stats: Counter) -> list[Block]:
+def _drop_boilerplate(blocks: list[Block], stats: Counter[str]) -> list[Block]:
     result = []
     for block in blocks:
         if not block["text"]:
@@ -354,7 +404,7 @@ def _drop_boilerplate(blocks: list[Block], stats: Counter) -> list[Block]:
     return result
 
 
-def _drop_sections(blocks: list[Block], stats: Counter) -> list[Block]:
+def _drop_sections(blocks: list[Block], stats: Counter[str]) -> list[Block]:
     """Entfernt Abschnitte wie 'Siehe auch' bis zur nächsten Überschrift gleicher Ebene."""
     result: list[Block] = []
     skip_level: int | None = None
@@ -395,7 +445,10 @@ def _is_boilerplate(text: str) -> bool:
 
 # -- Ausgabe zur Kontrolle ----------------------------------------------------
 
-VERDICT_LABEL = {"negativ": "Negativbeispiel", "positiv": "Positivbeispiel"}
+VERDICT_LABEL = {
+    "negativ": "Negativbeispiel (fehlerhaft oder nicht empfohlen)",
+    "positiv": "Empfohlene Variante",
+}
 
 
 def blocks_to_markdown(blocks: list[Block]) -> str:
@@ -408,8 +461,10 @@ def blocks_to_markdown(blocks: list[Block]) -> str:
         elif kind == "code":
             label = VERDICT_LABEL.get(block.get("verdict", ""), "")
             title = block.get("title", "")
-            if label or title:
-                parts.append(f"**{label}:** {title}" if label else f"*{title}*")
+            if label:
+                parts.append(f"**{label}:** {title}" if title else f"**{label}**")
+            elif title:
+                parts.append(f"*{title}*")
             parts.append(f"```{block['lang'] or ''}\n{block['text']}\n```")
             if block.get("note"):
                 parts.append(f"*{block['note']}*")

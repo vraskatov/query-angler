@@ -4,20 +4,31 @@
     uv run python -m queryangler.ingest fetch          # Rohdaten laden -> data/raw/
     uv run python -m queryangler.ingest clean          # bereinigen     -> data/clean/
     uv run python -m queryangler.ingest show <slug>    # ein Kapitel als Markdown ansehen
+    uv run python -m queryangler.ingest chunk          # in Chunks zerlegen -> data/chunks/
+    uv run python -m queryangler.ingest chunks <slug>  # Chunks eines Kapitels ansehen
 
-Rohdaten und bereinigte Daten liegen bewusst getrennt: Abgerufen wird einmal,
-bereinigt (und später gechunkt) beliebig oft, ohne erneut ins Netz zu gehen.
+Rohdaten und abgeleitete Daten liegen bewusst getrennt: Abgerufen wird einmal,
+bereinigt und gechunkt beliebig oft, ohne erneut ins Netz zu gehen.
 """
 
 import argparse
 import os
+import statistics
 import sys
 from collections import Counter
 
-from queryangler.config import ATTRIBUTION_FILE, CLEAN_DIR, MANIFEST_FILE, RAW_DIR
+from queryangler.config import ATTRIBUTION_FILE, CHUNKS_FILE, CLEAN_DIR, MANIFEST_FILE, RAW_DIR
 from queryangler.ingest.attribution import render_attribution
+from queryangler.ingest.chunk import MAX_CHARS, chunk_page
 from queryangler.ingest.clean import blocks_to_markdown, html_to_blocks
-from queryangler.ingest.util import now_iso, read_json, slugify, write_json
+from queryangler.ingest.util import (
+    now_iso,
+    read_json,
+    read_jsonl,
+    slugify,
+    write_json,
+    write_jsonl,
+)
 from queryangler.ingest.wiki import (
     WikiClient,
     chapter_name,
@@ -92,9 +103,9 @@ def cmd_clean(args: argparse.Namespace) -> None:
         sys.exit("Keine Rohdaten gefunden. Bitte zuerst `fetch` ausführen.")
     manifest = read_json(MANIFEST_FILE)
 
-    block_types: Counter = Counter()
-    roles: Counter = Counter()
-    stats_total: Counter = Counter()
+    block_types: Counter[str] = Counter()
+    roles: Counter[str] = Counter()
+    stats_total: Counter[str] = Counter()
     empty_pages, written = [], set()
     for meta in manifest["pages"]:
         raw = read_json(RAW_DIR / f"{meta['slug']}.json")
@@ -132,6 +143,48 @@ def cmd_show(args: argparse.Namespace) -> None:
     print(blocks_to_markdown(page["blocks"]))
 
 
+def cmd_chunk(args: argparse.Namespace) -> None:
+    pages = sorted(CLEAN_DIR.glob("*.json"))
+    if not pages:
+        sys.exit("Keine bereinigten Daten gefunden. Bitte zuerst `clean` ausführen.")
+    chunks = [chunk for path in pages for chunk in chunk_page(read_json(path))]
+    write_jsonl(CHUNKS_FILE, chunks)
+
+    sizes = [c["metadata"]["chars"] for c in chunks]
+    roles = Counter(c["metadata"]["role"] for c in chunks)
+    oversized = [c for c in chunks if c["metadata"]["chars"] > MAX_CHARS + 200]
+    print(f"{len(chunks)} Chunks aus {len(pages)} Kapiteln -> {CHUNKS_FILE}\n")
+    print("Nach Rolle:")
+    for role, count in roles.most_common():
+        print(f"  {role:<10} {count:>5}")
+    print("\nGröße in Zeichen (inkl. Kopf):")
+    print(f"  Minimum {min(sizes)}, Median {statistics.median(sizes):.0f}, Maximum {max(sizes)}")
+    negatives = sum(c["metadata"]["has_negative_example"] for c in chunks)
+    print(f"  mit Negativbeispiel: {negatives}")
+    if oversized:
+        print(
+            f"\n{len(oversized)} Chunks deutlich über {MAX_CHARS} Zeichen (einzelne große Blöcke):"
+        )
+        for chunk in sorted(oversized, key=lambda c: -c["metadata"]["chars"])[:10]:
+            print(
+                f"  {chunk['metadata']['chars']:>6}  {chunk['id']}  {chunk['metadata']['section']}"
+            )
+
+
+def cmd_chunks(args: argparse.Namespace) -> None:
+    if not CHUNKS_FILE.exists():
+        sys.exit("Keine Chunks gefunden. Bitte zuerst `chunk` ausführen.")
+    selected = [c for c in read_jsonl(CHUNKS_FILE) if c["metadata"]["slug"] == args.slug]
+    if not selected:
+        sys.exit(f"Keine Chunks für '{args.slug}'.")
+    for chunk in selected:
+        meta = chunk["metadata"]
+        info = f"{meta['role']}, {meta['chars']} Zeichen"
+        if meta["has_negative_example"]:
+            info += ", enthält Negativbeispiel"
+        print(f"===== {chunk['id']} ({info}) =====\n{chunk['text']}")
+
+
 def _remove_stale(directory, keep: set[str]) -> None:
     """Entfernt JSON-Dateien von Kapiteln, die es nicht mehr gibt."""
     for path in directory.glob("*.json"):
@@ -162,6 +215,12 @@ def main() -> None:
     show = sub.add_parser("show", help="ein bereinigtes Kapitel als Markdown ausgeben")
     show.add_argument("slug", help="Dateiname ohne .json, z. B. einleitung")
     show.set_defaults(func=cmd_show)
+    sub.add_parser("chunk", help="bereinigte Kapitel in Chunks zerlegen").set_defaults(
+        func=cmd_chunk
+    )
+    chunks = sub.add_parser("chunks", help="die Chunks eines Kapitels ausgeben")
+    chunks.add_argument("slug", help="Dateiname ohne .json, z. B. arbeiten-mit-join")
+    chunks.set_defaults(func=cmd_chunks)
 
     args = parser.parse_args()
     args.func(args)

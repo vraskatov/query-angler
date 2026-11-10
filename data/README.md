@@ -4,6 +4,7 @@
 |---|---|---|
 | `raw/` | API-Antworten je Kapitel, unverändert, plus `manifest.json` mit Revisions-IDs und Lizenz | ja |
 | `clean/` | bereinigte Textblöcke je Kapitel | nein, wird mit `ingest clean` erzeugt |
+| `chunks/` | Chunks für den Index als JSON Lines (`chunks.jsonl`) | nein, wird mit `ingest chunk` erzeugt |
 | `index/` | Vektorindex | nein, wird beim Indizieren erzeugt |
 
 Alle Inhalte stammen aus dem Wikibook „Einführung in SQL“ und stehen unter

@@ -8,6 +8,7 @@ __pycache__/
 # Daten: Rohdaten (data/raw/) werden versioniert,
 # alles daraus Abgeleitete lässt sich jederzeit neu erzeugen.
 data/clean/
+data/chunks/
 data/index/
 
 # Node

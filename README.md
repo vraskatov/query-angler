@@ -14,7 +14,7 @@ Designentscheidungen und ihre Begründung: [docs/ARCHITEKTUR.md](docs/ARCHITEKTU
 ## Stand
 
 - [x] Ingest: Kapitel über die MediaWiki-API laden, Revisionen festhalten, HTML bereinigen
-- [ ] Chunking
+- [x] Chunking: an der Gliederung des Buchs, Übungen und Lösungen getrennt, Negativbeispiele markiert
 - [ ] Embeddings und Vektorindex
 - [ ] Retrieval
 - [ ] Generierung (FastAPI, lokales LLM über Ollama)
@@ -34,6 +34,8 @@ uv run python -m queryangler.ingest list     # Seiten des Buchs mit Auswahl anze
 uv run python -m queryangler.ingest fetch    # Rohdaten nach data/raw/ laden
 uv run python -m queryangler.ingest clean    # bereinigte Textblöcke nach data/clean/
 uv run python -m queryangler.ingest show einleitung
+uv run python -m queryangler.ingest chunk    # Chunks nach data/chunks/
+uv run python -m queryangler.ingest chunks arbeiten-mit-join
 ```
 
 ## Entwicklung

@@ -178,3 +178,16 @@ def test_abschnitt_siehe_auch_entfernt(box_blocks):
     assert not find(box_blocks, text="Siehe auch")
     assert "Unterabfragen" not in all_text(box_blocks)
     assert find(box_blocks, type="heading", text="Danach")
+
+
+def test_code_im_listenpunkt_bleibt_codeblock(box_blocks):
+    i = next(
+        i for i, b in enumerate(box_blocks) if b["text"] == "1. Folgende Gruppierung ist zulässig."
+    )
+    assert box_blocks[i]["type"] == "list"
+    assert box_blocks[i + 1] == {
+        "type": "code",
+        "lang": "sql",
+        "text": "select PLZ, COUNT(*)\n  from Versicherungsnehmer vn",
+    }
+    assert box_blocks[i + 2] == {"type": "list", "text": "2. Zweiter Punkt"}

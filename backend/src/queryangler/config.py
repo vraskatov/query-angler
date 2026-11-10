@@ -9,6 +9,7 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 DATA_DIR = Path(os.environ.get("QUERYANGLER_DATA_DIR", REPO_ROOT / "data"))
 RAW_DIR = DATA_DIR / "raw"
 CLEAN_DIR = DATA_DIR / "clean"
+CHUNKS_FILE = DATA_DIR / "chunks" / "chunks.jsonl"
 MANIFEST_FILE = RAW_DIR / "manifest.json"
 ATTRIBUTION_FILE = Path(
     os.environ.get("QUERYANGLER_ATTRIBUTION_FILE", REPO_ROOT / "ATTRIBUTION.md")

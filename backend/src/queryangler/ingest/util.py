@@ -33,5 +33,16 @@ def write_json(path: Path, data: Any) -> None:
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
+def write_jsonl(path: Path, rows: list[Any]) -> None:
+    """Eine JSON-Zeile pro Eintrag: lässt sich zeilenweise lesen und gut vergleichen."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    lines = (json.dumps(row, ensure_ascii=False) for row in rows)
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def read_jsonl(path: Path) -> list[Any]:
+    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line]
+
+
 def read_json(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
