@@ -142,6 +142,51 @@ Gespeichert werden sie als JSON Lines (`data/chunks/chunks.jsonl`), ein Chunk pr
 `text` und `metadata` (Kapitel, Abschnitt, Rolle, Übungsnummer, Negativbeispiel ja/nein, URL,
 Permanentlink, Revision, Länge).
 
+## Embeddings und Index
+
+### Embedding-Modell: BGE-M3
+
+| Kriterium | BGE-M3 |
+|---|---|
+| Deutsch | stärkstes Modell dieser Größenklasse im deutschen Retrieval (MIRACL) |
+| Eingabelänge | 8.192 Token, deckt auch die größten Chunks vollständig ab |
+| Lizenz | MIT |
+| Größe | 568 Mio. Parameter, läuft auf der CPU |
+
+Verglichen wurden Qwen3-Embedding-0.6B (etwas schwächer im Deutschen) und EmbeddingGemma-300m
+(Gemma-Lizenz, keine anerkannte Open-Source-Lizenz). Modelle mit 512 Token Eingabelänge, etwa
+multilingual-e5, hätten die größten Chunks abgeschnitten. Die größeren Qwen3-Modelle bräuchten den
+Grafikspeicher, den das Sprachmodell belegt. Ob die Wahl für dieses Material die beste ist, prüfen
+die Evals.
+
+Das Modell läuft auf der CPU, damit die GPU dem Sprachmodell bleibt. PyTorch wird deshalb als
+reine CPU-Version installiert (`[tool.uv.sources]` in `pyproject.toml`), was mehrere Gigabyte an
+CUDA-Bibliotheken spart. Die Vektoren werden auf Länge 1 normiert.
+
+Das Modell steckt hinter dem Protokoll `Embedder`. In den Tests ersetzt es ein einfaches
+Wortzählmodell, sodass nichts heruntergeladen werden muss.
+
+### Index: Chroma
+
+- dauerhaft in `data/index/`, Ähnlichkeit über Kosinus, bei jedem `build` komplett neu aufgebaut
+- **Embeddings werden selbst berechnet und übergeben** (`embedding_function=None`). Chroma bringt
+  ein eigenes Standardmodell mit, ein kleines englisches Modell. Für deutschen Text würde es still
+  schlechtere Ergebnisse liefern.
+- **Der Modellname wird im Index gespeichert** und beim Öffnen geprüft. Wer mit einem anderen
+  Modell sucht als dem, mit dem der Index gebaut wurde, bekäme sinnlose Treffer ohne Fehlermeldung.
+- **Telemetrie abgeschaltet:** Chroma sendet standardmäßig anonyme Nutzungsstatistiken.
+
+Für einen produktiven Betrieb wäre PostgreSQL mit pgvector eine Alternative: ein Dienst weniger,
+wenn ohnehin eine Datenbank läuft, und Ähnlichkeitssuche kombinierbar mit normalem SQL.
+
+### Retrieval
+
+`Retriever.search(frage, k=5, include_solutions=True)` liefert die k ähnlichsten Chunks mit
+Ähnlichkeitswert (1 = gleiche Richtung). Mit `include_solutions=False` werden Musterlösungen über
+die Metadaten ausgefiltert (`role != "solution"`), die Grundlage für einen Tutor, der nur Hinweise
+gibt. Eine Schwelle, unterhalb der der Tutor „dazu enthält die Wissensbasis nichts“ antwortet,
+wird anhand der Evals festgelegt.
+
 ## Testbarkeit
 
 Logik und Ein-/Ausgabe sind getrennt. Bereinigung und Attribution sind reine Funktionen und werden

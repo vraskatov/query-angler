@@ -15,8 +15,8 @@ Designentscheidungen und ihre Begründung: [docs/ARCHITEKTUR.md](docs/ARCHITEKTU
 
 - [x] Ingest: Kapitel über die MediaWiki-API laden, Revisionen festhalten, HTML bereinigen
 - [x] Chunking: an der Gliederung des Buchs, Übungen und Lösungen getrennt, Negativbeispiele markiert
-- [ ] Embeddings und Vektorindex
-- [ ] Retrieval
+- [x] Embeddings (BGE-M3, lokal auf der CPU) und Vektorindex (Chroma)
+- [x] Retrieval mit Filter für Musterlösungen
 - [ ] Generierung (FastAPI, lokales LLM über Ollama)
 - [ ] Self-Service-Oberfläche für Lehrende
 - [ ] Evals, Docker Compose, CI
@@ -36,6 +36,14 @@ uv run python -m queryangler.ingest clean    # bereinigte Textblöcke nach data/
 uv run python -m queryangler.ingest show einleitung
 uv run python -m queryangler.ingest chunk    # Chunks nach data/chunks/
 uv run python -m queryangler.ingest chunks arbeiten-mit-join
+```
+
+## Index bauen und suchen
+
+```bash
+uv run python -m queryangler.index build     # lädt beim ersten Mal das Modell (ca. 2,3 GB)
+uv run python -m queryangler.index search "Was unterscheidet WHERE von HAVING?"
+uv run python -m queryangler.index search "Wie funktioniert ein LEFT JOIN?" --ohne-loesungen
 ```
 
 ## Entwicklung
