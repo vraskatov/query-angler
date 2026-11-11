@@ -5,34 +5,11 @@ Texte mit gemeinsamen Wörtern liegen nah beieinander. Das reicht, um Index,
 Filter und Reihenfolge zu prüfen, ohne ein Modell herunterzuladen.
 """
 
-import math
-import re
-import zlib
-
 import pytest
+from fakes import FakeEmbedder
 
 from queryangler.index.store import IndexUnavailableError, build_index, open_index
 from queryangler.retrieval import Retriever
-
-DIM = 256
-
-
-class FakeEmbedder:
-    name = "fake-bag-of-words"
-
-    def embed_documents(self, texts):
-        return [self._vector(t) for t in texts]
-
-    def embed_query(self, text):
-        return self._vector(text)
-
-    @staticmethod
-    def _vector(text):
-        vector = [0.0] * DIM
-        for word in re.findall(r"\w+", text.lower()):
-            vector[zlib.crc32(word.encode()) % DIM] += 1.0  # crc32: stabil über Programmläufe
-        norm = math.sqrt(sum(x * x for x in vector)) or 1.0
-        return [x / norm for x in vector]
 
 
 def chunk(id_, text, role="content", exercise=0):

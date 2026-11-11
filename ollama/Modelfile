@@ -1,0 +1,15 @@
+# Sprachmodell für Query Angler.
+# Erzeugen:  ollama create query-angler -f ollama/Modelfile
+#
+# Warum ein eigenes Modell? Ollama arbeitet standardmäßig mit 4096 Token Kontext.
+# Über die OpenAI-kompatible Schnittstelle lässt sich das pro Anfrage nicht ändern
+# (num_ctx wird dort ignoriert). Ist der Prompt länger, kürzt Ollama ihn still,
+# im ungünstigen Fall mitten im Systemprompt mit den Regeln.
+# Der Wert muss zu QUERYANGLER_LLM_CONTEXT_TOKENS passen (Standard 8192).
+
+FROM ministral-3:8b
+
+PARAMETER num_ctx 8192
+
+# Temperatur und Systemprompt setzt das Backend bei jeder Anfrage selbst,
+# damit alles Fachliche im Code steht und getestet werden kann.

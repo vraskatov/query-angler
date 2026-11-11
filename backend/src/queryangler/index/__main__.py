@@ -9,8 +9,8 @@ import argparse
 import sys
 import time
 
-from queryangler.config import CHUNKS_FILE, EMBED_DEVICE, EMBED_MODEL, INDEX_DIR
-from queryangler.index.embedder import SentenceTransformerEmbedder
+from queryangler.config import CHUNKS_FILE, EMBED_DEVICE, EMBED_MODEL, EMBED_REVISION, INDEX_DIR
+from queryangler.index.embedder import EmbedderUnavailableError, SentenceTransformerEmbedder
 from queryangler.index.store import IndexUnavailableError, build_index, open_index
 from queryangler.ingest.util import read_jsonl
 from queryangler.retrieval import Retriever
@@ -20,8 +20,10 @@ def cmd_build(args: argparse.Namespace) -> None:
     if not CHUNKS_FILE.exists():
         sys.exit("Keine Chunks gefunden. Bitte zuerst `ingest chunk` ausführen.")
     chunks = read_jsonl(CHUNKS_FILE)
-    print(f"Lade Modell {EMBED_MODEL} auf {EMBED_DEVICE} (beim ersten Mal mit Download) ...")
-    embedder = SentenceTransformerEmbedder(EMBED_MODEL, device=EMBED_DEVICE)
+    print(f"Lade Modell {EMBED_MODEL}@{EMBED_REVISION[:8]} (beim ersten Mal mit Download) ...")
+    embedder = SentenceTransformerEmbedder(
+        EMBED_MODEL, revision=EMBED_REVISION, device=EMBED_DEVICE
+    )
     print(f"Bette {len(chunks)} Chunks ein ...")
     start = time.perf_counter()
     collection = build_index(chunks, embedder, INDEX_DIR)
@@ -30,10 +32,12 @@ def cmd_build(args: argparse.Namespace) -> None:
 
 
 def cmd_search(args: argparse.Namespace) -> None:
-    embedder = SentenceTransformerEmbedder(EMBED_MODEL, device=EMBED_DEVICE)
     try:
-        collection = open_index(INDEX_DIR, embedder.name)
-    except IndexUnavailableError as error:
+        embedder = SentenceTransformerEmbedder(
+            EMBED_MODEL, revision=EMBED_REVISION, device=EMBED_DEVICE, offline=True
+        )
+        collection = open_index(INDEX_DIR, embedder.name, embedder.revision)
+    except (EmbedderUnavailableError, IndexUnavailableError) as error:
         sys.exit(str(error))
     hits = Retriever(collection, embedder).search(
         args.question, k=args.k, include_solutions=not args.ohne_loesungen
