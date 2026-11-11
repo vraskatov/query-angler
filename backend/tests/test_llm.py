@@ -100,3 +100,14 @@ def test_is_reachable():
         raise httpx.ConnectError("aus")
 
     assert asyncio.run(client_with(down).is_reachable()) is False
+
+
+def test_thinking_block_is_removed():
+    data = {
+        **COMPLETION,
+        "choices": [{"message": {"content": "<think>\nHm …\n</think>\n\nAntwort."}}],
+    }
+    result = asyncio.run(
+        client_with(lambda request: httpx.Response(200, json=data)).complete(MESSAGES)
+    )
+    assert result.text == "Antwort."

@@ -13,12 +13,14 @@ from queryangler.retrieval import Retriever
 @dataclass
 class Source:
     number: int  # wie im Prompt und in der Antwort: [1], [2] ...
+    id: str  # Chunk-ID, z. B. "gruppierungen#011"
     chapter: str
     section: str
     url: str
     permalink: str
     role: str
-    score: float
+    score: float  # Kosinus-Ähnlichkeit der Vektorsuche
+    rerank_score: float | None  # Bewertung des Rerankers, falls verwendet
     cited: bool  # in der Antwort tatsächlich genannt?
 
 
@@ -66,16 +68,18 @@ class Tutor:
 
         prompt = build_prompt(question, hits, mode, self.context_tokens)
         result = await self.llm.complete(prompt.messages)
-        cited = {int(n) for n in re.findall(r"\[(\d+)\]", result.text)}
+        cited = cited_numbers(result.text)
         sources = [
             Source(
                 number=n,
+                id=hit.id,
                 chapter=hit.metadata["chapter"],
                 section=hit.metadata["section"],
                 url=hit.metadata.get("url", ""),
                 permalink=hit.metadata.get("permalink", ""),
                 role=hit.metadata.get("role", ""),
                 score=round(hit.score, 4),
+                rerank_score=None if hit.rerank_score is None else round(hit.rerank_score, 4),
                 cited=n in cited,
             )
             for n, hit in enumerate(prompt.hits, start=1)
@@ -90,3 +94,9 @@ class Tutor:
             prompt_tokens=result.prompt_tokens,
             excerpts_dropped=prompt.dropped,
         )
+
+
+def cited_numbers(text: str) -> set[int]:
+    """Quellennummern in der Antwort: [1], [1, 5] und [1][2] werden erkannt."""
+    groups = re.findall(r"\[(\d+(?:\s*,\s*\d+)*)\]", text)
+    return {int(n) for group in groups for n in group.split(",")}

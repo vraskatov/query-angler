@@ -19,7 +19,8 @@ Designentscheidungen und ihre Begründung: [docs/ARCHITEKTUR.md](docs/ARCHITEKTU
 - [x] Retrieval mit Filter für Musterlösungen
 - [x] Generierung: API mit FastAPI, lokales Sprachmodell über Ollama, Antwort mit Quellen
 - [ ] Self-Service-Oberfläche für Lehrende
-- [ ] Evals, Docker Compose, CI
+- [x] Evals: Retrieval (Trefferquote, MRR) und Antworten (Absagen, sokratischer Modus, eigene Bewertung)
+- [ ] Docker Compose, CI
 
 ## Ingest ausführen
 
@@ -41,13 +42,21 @@ uv run python -m queryangler.ingest chunks arbeiten-mit-join
 ## Index bauen und suchen
 
 ```bash
-uv run python -m queryangler.index build     # lädt beim ersten Mal das Modell (ca. 2,3 GB)
+uv run python -m queryangler.index models    # einmalig: Embedding-Modell und Reranker laden (ca. 4,5 GB)
+uv run python -m queryangler.index build     # Chunks einbetten, Index aufbauen
 uv run python -m queryangler.index search "Was unterscheidet WHERE von HAVING?"
 uv run python -m queryangler.index search "Wie funktioniert ein LEFT JOIN?" --ohne-loesungen
+uv run python -m queryangler.index search "Wie sortiere ich absteigend?" --mit-reranker
 ```
 
-Das Embedding-Modell ist auf eine Revision festgelegt (`QUERYANGLER_EMBED_REVISION`). Nur `build`
-lädt es herunter, die Suche und der Server arbeiten offline. Für den Download ist kein
+Standard ist die reine Vektorsuche. Zwei Erweiterungen sind eingebaut und gemessen, aber
+standardmäßig aus, weil sie in der Eval nichts oder zu wenig brachten (siehe
+[docs/ARCHITEKTUR.md](docs/ARCHITEKTUR.md#retrieval)): eine hybride Suche mit BM25
+(`QUERYANGLER_HYBRID=1`, Fusion über `QUERYANGLER_FUSION`) und ein Reranker
+(`QUERYANGLER_RERANK=1`, `BAAI/bge-reranker-v2-m3`, auf der CPU langsam).
+
+Das Embedding-Modell ist auf eine Revision festgelegt (`QUERYANGLER_EMBED_REVISION`). Nur `models`
+und `build` laden aus dem Netz, die Suche und der Server arbeiten offline (`HF_HUB_OFFLINE`). Für den Download ist kein
 Hugging-Face-Konto nötig. Wer trotzdem ein Token verwendet, setzt es als Umgebungsvariable
 (`export HF_TOKEN=...`), nicht als Argument eines Befehls, damit es nicht in der Shell-Historie landet.
 
@@ -84,6 +93,20 @@ Einstellungen über Umgebungsvariablen, unter anderem `QUERYANGLER_LLM_BASE_URL`
 `QUERYANGLER_LLM_CONTEXT_TOKENS` (Standard 8192, muss zum Modelfile passen). Jeder Dienst mit
 OpenAI-kompatibler Schnittstelle funktioniert, ein Schlüssel kommt bei Bedarf in
 `QUERYANGLER_LLM_API_KEY`.
+
+## Evals
+
+Testfragen in [`evals/questions.toml`](evals/questions.toml), in vier Gruppen: im Buch, nah am
+Thema aber nicht im Buch, themenfremd, sokratische Aufgaben. Ergebnisse in `evals/results/`.
+
+```bash
+cd backend
+uv run python -m queryangler.evals retrieval                   # ohne Sprachmodell, Sekunden
+uv run python -m queryangler.evals answers --label ministral   # mit Ollama, einige Minuten
+QUERYANGLER_LLM_MODEL=query-angler-qwen3 uv run python -m queryangler.evals answers --label qwen3
+uv run python -m queryangler.evals rate                        # Antworten selbst bewerten (0–2)
+uv run python -m queryangler.evals report                      # Vergleich aller Läufe
+```
 
 ## Entwicklung
 

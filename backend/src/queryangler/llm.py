@@ -5,6 +5,7 @@ mit model und messages). Ollama, Mistral, vLLM, LM Studio und andere bieten es a
 Welcher Anbieter antwortet, entscheidet allein die Adresse in der Konfiguration.
 """
 
+import re
 import time
 from dataclasses import dataclass
 from typing import Any, Protocol
@@ -86,7 +87,7 @@ class OpenAICompatibleClient:
         data = response.json()
         usage = data.get("usage") or {}
         return LLMResult(
-            text=data["choices"][0]["message"]["content"].strip(),
+            text=_strip_thinking(data["choices"][0]["message"]["content"]),
             model=data.get("model", self.model),
             seconds=time.perf_counter() - start,
             prompt_tokens=usage.get("prompt_tokens"),
@@ -102,3 +103,8 @@ class OpenAICompatibleClient:
 
     async def aclose(self) -> None:
         await self._client.aclose()
+
+
+def _strip_thinking(text: str) -> str:
+    """Entfernt einen Denkblock <think>…</think>, wie ihn z. B. Qwen3 voranstellen kann."""
+    return re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()

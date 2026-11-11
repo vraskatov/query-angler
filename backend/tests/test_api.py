@@ -8,7 +8,7 @@ from queryangler.api.app import create_app
 from queryangler.index.store import IndexUnavailableError, build_index, open_index
 from queryangler.llm import LLMError, LLMTimeoutError, LLMUnavailableError
 from queryangler.retrieval import Retriever
-from queryangler.tutor import Tutor
+from queryangler.tutor import Tutor, cited_numbers
 
 
 def chunk(id_, text, role="content"):
@@ -62,7 +62,7 @@ def test_ask_returns_answer_with_sources(client, llm):
     assert (first["number"], first["cited"]) == (1, True)
     assert (second["number"], second["cited"]) == (2, False)
     assert first["url"].startswith("https://de.wikibooks.org/")
-    assert "Frage: Was macht HAVING mit Gruppen?" in llm.last_messages[1]["content"]
+    assert "Frage der Lernenden: Was macht HAVING mit Gruppen?" in llm.last_messages[1]["content"]
 
 
 def test_socratic_mode_never_sees_solutions(client, llm):
@@ -125,3 +125,16 @@ def test_server_starts_without_index_and_reports_why():
     assert "index build" in health["detail"]
     assert ask.status_code == 503
     assert "index build" in ask.json()["detail"]
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("HAVING filtert Gruppen [1].", {1}),
+        ("Beispiel [1, 5]. Und [1,4].", {1, 4, 5}),  # Liste in einer Klammer
+        ("Siehe [2][3].", {2, 3}),
+        ("Kein Verweis, nur ein Array a[i].", set()),
+    ],
+)
+def test_cited_numbers(text, expected):
+    assert cited_numbers(text) == expected

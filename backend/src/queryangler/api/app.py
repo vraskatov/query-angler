@@ -16,24 +16,17 @@ from fastapi import Depends, FastAPI, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from queryangler import config
-from queryangler.index.embedder import EmbedderUnavailableError, SentenceTransformerEmbedder
-from queryangler.index.store import IndexUnavailableError, open_index
+from queryangler.components import load_retriever
+from queryangler.index.embedder import ModelUnavailableError
+from queryangler.index.store import IndexUnavailableError
 from queryangler.llm import LLMError, LLMTimeoutError, LLMUnavailableError, OpenAICompatibleClient
 from queryangler.prompt import Mode
-from queryangler.retrieval import Retriever
 from queryangler.tutor import Answer, Tutor
 
 
 def build_default_tutor() -> Tutor:
     """Baut den Tutor aus der Konfiguration (Umgebungsvariablen QUERYANGLER_*)."""
-    # Zuerst den Index öffnen: Das geht schnell und scheitert früh, falls er fehlt.
-    collection = open_index(config.INDEX_DIR, config.EMBED_MODEL, config.EMBED_REVISION)
-    embedder = SentenceTransformerEmbedder(
-        config.EMBED_MODEL,
-        revision=config.EMBED_REVISION,
-        device=config.EMBED_DEVICE,
-        offline=True,  # der Server lädt nie etwas aus dem Netz nach
-    )
+    retriever = load_retriever()
     llm = OpenAICompatibleClient(
         config.LLM_BASE_URL,
         config.LLM_MODEL,
@@ -41,7 +34,7 @@ def build_default_tutor() -> Tutor:
         temperature=config.LLM_TEMPERATURE,
         timeout=config.LLM_TIMEOUT,
     )
-    return Tutor(Retriever(collection, embedder), llm, context_tokens=config.LLM_CONTEXT_TOKENS)
+    return Tutor(retriever, llm, context_tokens=config.LLM_CONTEXT_TOKENS)
 
 
 class AskRequest(BaseModel):
@@ -71,7 +64,7 @@ def create_app(build_tutor: Callable[[], Tutor] = build_default_tutor) -> FastAP
         app.state.startup_error = None
         try:
             app.state.tutor = build_tutor()
-        except (IndexUnavailableError, EmbedderUnavailableError) as error:
+        except (IndexUnavailableError, ModelUnavailableError) as error:
             app.state.startup_error = str(error)
         yield
         aclose = getattr(getattr(app.state.tutor, "llm", None), "aclose", None)

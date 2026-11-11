@@ -3,6 +3,7 @@
 import math
 import re
 import zlib
+from dataclasses import replace
 
 from queryangler.llm import LLMResult, Message
 
@@ -51,3 +52,17 @@ class FakeLLM:
 
     async def is_reachable(self) -> bool:
         return self.reachable
+
+
+class FakeReranker:
+    """Bewertet nach der Zahl gemeinsamer Wörter von Frage und Chunk."""
+
+    name = "fake-overlap"
+
+    def rerank(self, question, hits):
+        words = set(re.findall(r"\w+", question.lower()))
+        scored = [
+            replace(h, rerank_score=float(len(words & set(re.findall(r"\w+", h.text.lower())))))
+            for h in hits
+        ]
+        return sorted(scored, key=lambda h: h.rerank_score, reverse=True)

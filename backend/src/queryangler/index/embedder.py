@@ -5,6 +5,7 @@ steckt, entscheidet die Konfiguration. In den Tests ersetzt ein einfaches
 Ersatzmodell das echte, damit nichts heruntergeladen werden muss.
 """
 
+import os
 from typing import Protocol
 
 
@@ -16,8 +17,19 @@ class Embedder(Protocol):
     def embed_query(self, text: str) -> list[float]: ...
 
 
-class EmbedderUnavailableError(RuntimeError):
-    """Das Modell liegt nicht lokal vor."""
+class ModelUnavailableError(RuntimeError):
+    """Ein Modell liegt nicht lokal vor."""
+
+
+def forbid_hub_access() -> None:
+    """Verbietet der Hugging-Face-Bibliothek jeden Netzzugriff, auch Prüfanfragen.
+
+    local_files_only allein genügte nicht: Beim Laden ging trotzdem eine Anfrage an
+    den Hub hinaus (Warnung "unauthenticated requests"). Muss vor dem ersten Import
+    von sentence_transformers bzw. huggingface_hub aufgerufen werden.
+    """
+    os.environ["HF_HUB_OFFLINE"] = "1"
+    os.environ["TRANSFORMERS_OFFLINE"] = "1"
 
 
 class SentenceTransformerEmbedder:
@@ -39,6 +51,8 @@ class SentenceTransformerEmbedder:
         device: str = "cpu",
         offline: bool = False,
     ) -> None:
+        if offline:
+            forbid_hub_access()
         # Import erst hier: lädt PyTorch, was ein paar Sekunden dauert und
         # für Tests und Befehle ohne Embeddings nicht nötig ist.
         from sentence_transformers import SentenceTransformer
@@ -52,9 +66,9 @@ class SentenceTransformerEmbedder:
         except OSError as error:
             if not offline:
                 raise
-            raise EmbedderUnavailableError(
+            raise ModelUnavailableError(
                 f"Modell {model_name} (Revision {revision}) liegt nicht lokal vor. "
-                "Bitte zuerst `index build` ausführen, das lädt es herunter."
+                "Bitte zuerst `index models` ausführen, das lädt es herunter."
             ) from error
 
     def embed_documents(self, texts: list[str]) -> list[list[float]]:

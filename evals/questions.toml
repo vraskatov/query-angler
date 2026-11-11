@@ -1,0 +1,296 @@
+# Testfragen für die Evals.
+#
+# group:
+#   im_buch      Das Buch beantwortet die Frage. Erwartet: richtige Antwort mit Quelle.
+#   nah_dran     SQL-Thema, das das Buch nicht erklärt (geprüft gegen alle Chunks;
+#                manche Begriffe stehen nur in der Liste der Schlüsselwörter). Erwartet: Absage.
+#   fremd        Kein SQL-Thema. Erwartet: Absage.
+#   sokratisch   Aufgabe im sokratischen Modus. Erwartet: Hinweis und Frage, ohne Lösung.
+#
+# gold:          Abschnitte, von denen mindestens einer gefunden werden muss, als
+#                "Kapitel > Abschnitt". Ein Eintrag passt auch auf alle Unterabschnitte.
+# keywords_all:  Begriffe, die in einer richtigen Antwort alle vorkommen müssen.
+# keywords_any:  Begriffe, von denen mindestens einer vorkommen muss.
+
+# --- Im Buch -----------------------------------------------------------------
+
+[[question]]
+id = "where-having"
+group = "im_buch"
+question = "Was unterscheidet WHERE von HAVING?"
+gold = [
+  "Gruppierungen > Erweiterungen > Ergebnis mit HAVING einschränken",
+  "Ausführliche SELECT-Struktur > Having Clause – HAVING-Klausel",
+]
+keywords_all = ["GROUP BY"]
+
+[[question]]
+id = "abteilungen-pro-ort"
+group = "im_buch"
+question = "Wie zähle ich, wie viele Abteilungen es pro Ort gibt?"
+gold = ["Gruppierungen > Gruppierung bei einer Tabelle"]
+keywords_all = ["GROUP BY", "COUNT"]
+
+[[question]]
+id = "staedte-pro-land"
+group = "im_buch"
+question = "Wie zähle ich, wie viele Städte es pro Land gibt?"
+gold = [
+  "Gruppierungen > Gruppierung bei einer Tabelle",
+  "Funktionen > Spaltenfunktionen > COUNT – Anzahl",
+]
+keywords_all = ["GROUP BY", "COUNT"]
+
+[[question]]
+id = "inner-left-join"
+group = "im_buch"
+question = "Was ist der Unterschied zwischen INNER JOIN und LEFT OUTER JOIN?"
+gold = [
+  "OUTER JOIN > LEFT OUTER JOIN",
+  "OUTER JOIN > Allgemeine Hinweise zu OUTER JOIN",
+  "Mehrere Tabellen > OUTER JOIN - auch null-Werte zurückgeben",
+]
+keywords_all = ["LEFT"]
+
+[[question]]
+id = "leere-spalte"
+group = "im_buch"
+question = "Wie finde ich Zeilen, in denen eine Spalte keinen Wert enthält?"
+gold = ["WHERE-Klausel im Detail > Eine einzelne Bedingung > IS NULL – null-Werte prüfen"]
+keywords_all = ["IS NULL"]
+
+[[question]]
+id = "doppelte-zeilen"
+group = "im_buch"
+question = "Wie verhindere ich doppelte Zeilen im Ergebnis?"
+gold = [
+  "DML (1) - Daten abfragen > DISTINCT – Keine doppelten Zeilen",
+  "Nützliche Erweiterungen > DISTINCT – keine doppelten Einträge",
+]
+keywords_all = ["DISTINCT"]
+
+[[question]]
+id = "absteigend-sortieren"
+group = "im_buch"
+question = "Wie sortiere ich das Ergebnis absteigend?"
+gold = [
+  "DML (1) - Daten abfragen > ORDER BY – Sortieren",
+  "Ausführliche SELECT-Struktur > Order By Clause – ORDER BY-Klausel",
+]
+keywords_all = ["ORDER BY", "DESC"]
+
+[[question]]
+id = "erste-zehn-zeilen"
+group = "im_buch"
+question = "Wie begrenze ich die Ausgabe auf die ersten zehn Zeilen?"
+gold = ["Nützliche Erweiterungen > Beschränkung auf eine Anzahl Zeilen"]
+keywords_any = ["LIMIT", "TOP", "FIRST", "ROWNUM", "ROWS"]
+
+[[question]]
+id = "namen-beginnen-mit"
+group = "im_buch"
+question = "Wie finde ich alle Namen, die mit 'Sch' beginnen?"
+gold = ["WHERE-Klausel im Detail > Eine einzelne Bedingung > LIKE – Ähnlichkeiten (1)"]
+keywords_all = ["LIKE", "%"]
+
+[[question]]
+id = "fremdschluessel"
+group = "im_buch"
+question = "Was ist ein Fremdschlüssel?"
+gold = [
+  "Fremdschlüssel-Beziehungen",
+  "Relationale Datenbanken > Verknüpfungen und Schlüssel",
+]
+
+[[question]]
+id = "alles-oder-nichts"
+group = "im_buch"
+question = "Wie sorge ich dafür, dass mehrere Änderungen entweder alle oder gar nicht gespeichert werden?"
+gold = ["TCL - Ablaufsteuerung"]
+keywords_any = ["COMMIT", "ROLLBACK"]
+
+[[question]]
+id = "automatische-nummer"
+group = "im_buch"
+question = "Wie lege ich eine Spalte an, die automatisch hochzählt?"
+gold = [
+  "DDL - Einzelheiten > Definition einer einzelnen Spalte > AUTO_INCREMENT – automatischer Zähler",
+  "DDL - Struktur der Datenbank > Ergänzungen zu Tabellen > IDENTITY – auch ein automatischer Zähler",
+  "DDL - Struktur der Datenbank > Ergänzungen zu Tabellen > SEQUENCE – Ersatz für automatischen Zähler",
+]
+keywords_any = ["AUTO_INCREMENT", "IDENTITY", "SEQUENCE"]
+
+[[question]]
+id = "datensatz-einfuegen"
+group = "im_buch"
+question = "Wie füge ich einen neuen Datensatz in eine Tabelle ein?"
+gold = ["DML (2) - Daten speichern > INSERT – Daten einfügen"]
+keywords_all = ["INSERT"]
+
+[[question]]
+id = "zweite-normalform"
+group = "im_buch"
+question = "Was bedeutet die zweite Normalform?"
+gold = ["Normalisierung > Die 2. Normalform"]
+
+[[question]]
+id = "fallunterscheidung"
+group = "im_buch"
+question = "Wie unterscheide ich in einer Abfrage verschiedene Fälle, etwa um Werte in Kategorien einzuteilen?"
+gold = ["Nützliche Erweiterungen > CASE WHEN – Fallunterscheidungen"]
+keywords_all = ["CASE", "WHEN"]
+
+[[question]]
+id = "abfrage-in-abfrage"
+group = "im_buch"
+question = "Wie verwende ich das Ergebnis einer Abfrage als Bedingung in einer anderen Abfrage?"
+gold = ["Unterabfragen", "WHERE-Klausel im Detail > Eine einzelne Bedingung > IN – genauer Vergleich mit einer Liste"]
+keywords_all = ["SELECT"]
+
+[[question]]
+id = "tabelle-mit-sich-selbst"
+group = "im_buch"
+question = "Wie verknüpfe ich eine Tabelle mit sich selbst?"
+gold = ["Mehr zu JOIN > SELF JOIN – Verknüpfung mit sich selbst"]
+keywords_all = ["JOIN"]
+
+[[question]]
+id = "runden"
+group = "im_buch"
+question = "Wie runde ich eine Zahl auf zwei Nachkommastellen?"
+gold = ["Funktionen > Funktionen für Zahlen > CEILING, FLOOR, ROUND, TRUNCATE – die nächste ganze Zahl"]
+keywords_all = ["ROUND"]
+
+# --- Nah dran, aber nicht im Buch ---------------------------------------------
+
+[[question]]
+id = "json-value"
+group = "nah_dran"
+question = "Wie funktioniert JSON_VALUE?"
+
+[[question]]
+id = "lag"
+group = "nah_dran"
+question = "Wie greife ich mit LAG auf den Wert der vorherigen Zeile zu?"
+
+[[question]]
+id = "pivot"
+group = "nah_dran"
+question = "Wie drehe ich mit PIVOT Zeilen in Spalten?"
+
+[[question]]
+id = "string-agg"
+group = "nah_dran"
+question = "Wie fasse ich mit STRING_AGG mehrere Werte zu einer Zeichenkette zusammen?"
+
+[[question]]
+id = "merge-upsert"
+group = "nah_dran"
+question = "Wie füge ich mit MERGE einen Datensatz ein oder aktualisiere ihn, falls er schon existiert?"
+
+[[question]]
+id = "isolationsstufen"
+group = "nah_dran"
+question = "Welche Isolationsstufen gibt es bei Transaktionen?"
+
+[[question]]
+id = "explain"
+group = "nah_dran"
+question = "Wie lese ich mit EXPLAIN den Ausführungsplan einer Abfrage?"
+
+[[question]]
+id = "materialized-view"
+group = "nah_dran"
+question = "Wie erstelle ich eine Materialized View?"
+
+# --- Themenfremd ----------------------------------------------------------------
+
+[[question]]
+id = "apfelkuchen"
+group = "fremd"
+question = "Wie backe ich einen Apfelkuchen?"
+
+[[question]]
+id = "pip"
+group = "fremd"
+question = "Wie installiere ich Python-Pakete mit pip?"
+
+[[question]]
+id = "fussball"
+group = "fremd"
+question = "Wer hat die Fußball-WM 2014 gewonnen?"
+
+[[question]]
+id = "sverweis"
+group = "fremd"
+question = "Wie benutze ich in Excel einen SVERWEIS?"
+
+# --- Sokratisch: Aufgaben -------------------------------------------------------
+
+[[question]]
+id = "s-abteilungen-pro-ort"
+group = "sokratisch"
+question = "Wie zähle ich, wie viele Abteilungen es pro Ort gibt?"
+gold = ["Gruppierungen > Gruppierung bei einer Tabelle"]
+
+[[question]]
+id = "s-nachname-m"
+group = "sokratisch"
+question = "Wie finde ich alle Mitarbeiter, deren Nachname mit M beginnt?"
+gold = ["WHERE-Klausel im Detail > Eine einzelne Bedingung > LIKE – Ähnlichkeiten (1)"]
+
+[[question]]
+id = "s-abteilungen-ohne-mitarbeiter"
+group = "sokratisch"
+question = "Wie zeige ich alle Abteilungen an, auch solche ohne Mitarbeiter?"
+gold = ["OUTER JOIN", "Mehrere Tabellen > OUTER JOIN - auch null-Werte zurückgeben"]
+
+[[question]]
+id = "s-mehr-als-drei"
+group = "sokratisch"
+question = "Wie finde ich die Orte, in denen es mehr als drei Abteilungen gibt?"
+gold = [
+  "Gruppierungen > Erweiterungen > Ergebnis mit HAVING einschränken",
+  "Ausführliche SELECT-Struktur > Having Clause – HAVING-Klausel",
+]
+
+[[question]]
+id = "s-mitarbeiter-mit-abteilung"
+group = "sokratisch"
+question = "Wie zeige ich jeden Mitarbeiter zusammen mit dem Namen seiner Abteilung an?"
+gold = [
+  "Arbeiten mit JOIN > INNER JOIN von zwei Tabellen",
+  "Einfache Tabellenverknüpfung > Zwei Tabellen einfach verbinden",
+  "Mehrere Tabellen > JOINs - der moderne Weg",
+]
+
+[[question]]
+id = "s-ohne-geburtsdatum"
+group = "sokratisch"
+question = "Wie finde ich Mitarbeiter, bei denen kein Geburtsdatum eingetragen ist?"
+gold = ["WHERE-Klausel im Detail > Eine einzelne Bedingung > IS NULL – null-Werte prüfen"]
+
+# Absichtlich nah am Muster im Prompt (Sortieren): zeigt, ob das Modell das Muster abschreibt.
+[[question]]
+id = "s-sortieren"
+group = "sokratisch"
+question = "Wie sortiere ich die Mitarbeiter nach Nachname und bei gleichem Nachnamen nach Vorname?"
+gold = ["DML (1) - Daten abfragen > ORDER BY – Sortieren"]
+
+[[question]]
+id = "s-durchschnitt"
+group = "sokratisch"
+question = "Wie berechne ich die durchschnittliche Schadenshöhe pro Jahr?"
+gold = ["Gruppierungen", "Funktionen > Spaltenfunktionen"]
+
+[[question]]
+id = "s-um-zehn-prozent"
+group = "sokratisch"
+question = "Wie erhöhe ich einen Wert in allen Zeilen, die eine Bedingung erfüllen, um 10 Prozent?"
+gold = ["DML (2) - Daten speichern > UPDATE – Daten ändern", "Befehlsreferenz > DML – Data Manipulation Language > Änderungen mit UPDATE"]
+
+[[question]]
+id = "s-gleiche-abteilung"
+group = "sokratisch"
+question = "Wie finde ich alle Mitarbeiter, die in derselben Abteilung arbeiten wie ein bestimmter Kollege?"
+gold = ["Unterabfragen", "Mehr zu JOIN > SELF JOIN – Verknüpfung mit sich selbst"]

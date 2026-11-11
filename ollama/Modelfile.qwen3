@@ -1,0 +1,6 @@
+# Gegenprobe für die Evals: Qwen3 8B mit demselben Kontextfenster wie das Standardmodell.
+# Erzeugen:  ollama create query-angler-qwen3 -f ollama/Modelfile.qwen3
+
+FROM qwen3:8b
+
+PARAMETER num_ctx 8192

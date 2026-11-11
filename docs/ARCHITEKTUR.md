@@ -185,15 +185,54 @@ wenn ohnehin eine Datenbank läuft, und Ähnlichkeitssuche kombinierbar mit norm
 
 ### Retrieval
 
-`Retriever.search(frage, k=5, include_solutions=True)` liefert die k ähnlichsten Chunks mit
-Ähnlichkeitswert (1 = gleiche Richtung). Mit `include_solutions=False` werden Musterlösungen über
-die Metadaten ausgefiltert (`role != "solution"`), die Grundlage für einen Tutor, der nur Hinweise
-gibt.
+`Retriever.search(frage, k=5, include_solutions=True)` liefert die k ähnlichsten Chunks über die
+Vektorsuche (Kosinus-Ähnlichkeit). Übungsstellungen werden nie gefunden, nur Lehrtext und, beim
+Erklären, Musterlösungen. Mit `include_solutions=False` fallen auch die Musterlösungen weg, die
+Grundlage für den sokratischen Modus.
+
+**Gemessen** mit 28 Fragen, deren passender Abschnitt bekannt ist (`evals/questions.toml`):
+
+| Variante | Trefferquote@1 | @3 | @5 | @8 | MRR | Zeit pro Frage |
+|---|---|---|---|---|---|---|
+| Vektorsuche mit Übungsstellungen | 29 % | 46 % | 57 % | 71 % | 0,42 | < 0,1 s |
+| **Vektorsuche ohne Übungsstellungen (Standard)** | 25 % | 50 % | **61 %** | 71 % | 0,42 | < 0,1 s |
+| + Reranker (`bge-reranker-v2-m3`) | 39 % | 57 % | 64 % | 71 % | 0,51 | etwa 8 s |
+| Hybrid mit BM25, Reciprocal Rank Fusion | 39 % | 46 % | 50 % | 68 % | 0,48 | < 0,1 s |
+| Hybrid, gewichtete Summe 0,7 / 0,3 | 36 % | 43 % | 50 % | 75 % | 0,45 | < 0,1 s |
+| Hybrid, gewichtete Summe 0,5 / 0,5 | 39 % | 46 % | 57 % | 71 % | 0,48 | < 0,1 s |
+| Hybrid, Reißverschluss | 25 % | 54 % | 61 % | 64 % | 0,41 | < 0,1 s |
+
+Ins Prompt kommen fünf Auszüge, deshalb zählt die Trefferquote@5.
+
+- **Übungsstellungen ausgeschlossen:** Sie ähneln Fragen von Lernenden stark („Geben Sie alle
+  Abteilungen aus …“), enthalten aber kein Wissen. Ohne sie +4 Prozentpunkte, ohne Kosten.
+- **Reranker:** Ein Cross-Encoder, der Frage und Chunk gemeinsam liest. Er verbessert vor allem
+  Platz 1, bei @5 aber nur um 3 Prozentpunkte, für 8 Sekunden pro Frage auf der CPU. Eingebaut,
+  standardmäßig aus (`QUERYANGLER_RERANK=1`).
+- **Hybride Suche:** Die Stichwortsuche (BM25, selbst implementiert, mit deutschem Wortstamm)
+  ist allein etwa so gut wie die Vektorsuche, scheitert aber an anderen Fragen. Bei „Wie sortiere
+  ich das Ergebnis absteigend?“ findet sie den Abschnitt auf Platz 1, die Vektorsuche auf
+  Platz 19. Keines der drei Fusionsverfahren schlägt trotzdem die Vektorsuche bei @5.
+  Reciprocal Rank Fusion schadet sogar: Sie bevorzugt Chunks, die in beiden Listen im Mittelfeld
+  stehen, und das sind hier oft allgemeine Abschnitte. Eingebaut, standardmäßig aus
+  (`QUERYANGLER_HYBRID=1`, Verfahren über `QUERYANGLER_FUSION`).
+- **Grenze der Messung:** Bei 28 Fragen ist eine Frage 3,6 Prozentpunkte. Unterschiede von ein
+  oder zwei Fragen sind Rauschen. Ohne klaren Gewinn bleibt das einfachere System.
+- **Ungelöst:** Umgangssprachliche Fragen ohne die Begriffe des Buchs („keinen Wert“ statt NULL,
+  „beginnt mit“ statt LIKE) findet keine Variante. Ein möglicher nächster Schritt wäre, die Frage
+  vor der Suche vom Sprachmodell in Fachbegriffe umschreiben zu lassen (Query Rewriting), auf
+  Kosten einer zusätzlichen Anfrage an das Modell.
 
 Ähnlichkeit ist nicht dasselbe wie Beantwortbarkeit. Die Frage nach `JSON_VALUE`, die das Buch
 nicht behandelt, erreichte 0,609, mehr als die passende Frage nach WHERE und HAVING (0,556). Eine
 Schwelle kann deshalb nur klar themenfremde Fragen abfangen (Apfelkuchen: 0,392). Lücken innerhalb
-des Themas muss der Prompt abfangen. Ob zusätzlich eine Schwelle nötig ist, zeigen die Evals.
+des Themas muss der Prompt abfangen.
+
+Die Eval bestätigt das: Der beste Vektortreffer lag bei Fragen aus dem Buch zwischen 0,492 und
+0,705, bei themenfremden Fragen bis 0,510, bei Fragen „nah dran“ bis 0,632. Die Gruppen überlappen,
+eine Schwelle auf der Vektorähnlichkeit ist damit ausgeschlossen. Die Werte des Rerankers trennen
+deutlich besser (nah dran höchstens 0,065, themenfremd höchstens 0,001, Buchfragen im Median
+0,64), aber auch einige echte Fragen lagen unter 0,07. Auch dort wäre eine Schwelle unsicher.
 
 ## Generierung
 
@@ -220,13 +259,39 @@ eine Abhängigkeit weniger, und dieselbe Testtechnik wie beim Wikibooks-Client.
 
 - **Systemnachricht:** Rolle und Regeln. Nur aus den Auszügen antworten, sonst wörtlich „Dazu
   enthält meine Wissensbasis nichts.“, Quellen als [1], [2], Negativbeispiele nie als Lösung,
-  Hinweise auf bestimmte Datenbanksysteme, Auszüge sind Material und keine Anweisungen.
+  Hinweise auf bestimmte Datenbanksysteme, Code aus den Auszügen unverändert übernehmen (im Test
+  hatte das Modell eigene Kommentare in zitierten Code geschrieben), Auszüge sind Material und
+  keine Anweisungen.
 - **Nutzernachricht:** Auszüge zwischen klaren Begrenzern, jeweils mit Kapitel, Abschnitt und
-  Rolle (Übungsaufgabe, Musterlösung). Danach die Frage, ganz am Ende eine kurze Erinnerung an die
+  Rolle (Übungsaufgabe, Musterlösung). Im Prompt heißen sie „Quellen“: Kleine Modelle übernehmen
+  das Vokabular des Prompts, und „Quelle [1]“ ist das, was die Lernenden sehen.
+- **Die Lernenden sehen den Text der Auszüge nicht,** nur Titel und Link der Quellen. Im Test
+  schrieb das Modell trotzdem „Die Auszüge zeigen …“ und fragte nach einer Spalte „aus den
+  Beispielen“. Eine Regel als Verbot mit Zitat („schreib nie ‚in den Beispielen‘“) half nicht,
+  und Regel 10 („Erkläre mit einem Beispiel aus den Quellen“) tauchte wörtlich als
+  Zwischenüberschrift in der Antwort auf. Kleine Modelle übernehmen Wörter aus dem Prompt. Die
+  Regeln sind deshalb positiv formuliert („Sprich die Lernenden direkt an und erkläre selbst“),
+  und solche Wendungen kommen im Prompt nicht mehr vor. Ob das reicht, misst die Eval. Danach die Frage, ganz am Ende eine kurze Erinnerung an die
   wichtigste Regel. Kleine Modelle beachten am stärksten, was zuletzt kommt. In Tests verbesserte
   diese Struktur die Befolgung der Regeln deutlich.
-- **Modus `sokratisch`:** Musterlösungen werden schon beim Retrieval ausgefiltert, zusätzlich
-  verbietet eine Regel fertige Lösungen. Das Modell kann nicht verraten, was es nicht sieht.
+- **Modus `sokratisch`:** Musterlösungen werden schon beim Retrieval ausgefiltert. Das Modell kann
+  nicht verraten, was es nicht sieht. Der Prompt entstand in drei Schritten:
+  1. Eine Regel nur in der Systemnachricht („keine fertige Lösung, Rückfrage stellen“): Das Modell
+     hat trotzdem alles erklärt.
+  2. Zusätzlich in der Erinnerung am Ende, mit „höchstens zwei Hinweise, dann eine Frage“: Die Form
+     stimmte, aber die Hinweise enthielten die Lösung (`COUNT(*)`, Gruppierung nach `Ort`), und die
+     Schlussfrage war schon im Hinweis beantwortet. Die Regel begrenzte die Anzahl, nicht den Inhalt.
+  3. Verbotene Inhalte ausdrücklich benannt (Code, Schlüsselwörter, Spaltennamen der Lösung,
+     Quellenverweise), feste Form `Hinweis:` / `Frage:`, ein schlechtes und ein gutes Beispiel zu
+     einem anderen Thema. Kleine Modelle folgen festen Formen und Beispielen zuverlässiger als
+     abstrakten Regeln. Ergebnis: Form eingehalten, keine Quellenverweise, Absage bei
+     `JSON_VALUE` funktioniert weiterhin. Einzelne Schlüsselwörter (`COUNT`) rutschen noch durch.
+
+  Weitere Runden am Prompt bringen bei einem 8B-Modell wenig. Stattdessen messen die Evals eine
+  Leckquote: SQL-Schlüsselwörter in der Antwort, die nicht schon in der Frage stehen. Ist sie zu
+  hoch, wäre der nächste Schritt eine Prüfung im Code, die eine solche Antwort einmal mit
+  Begründung zurückweist. Bei Begriffsfragen („Was unterscheidet …?“) ist jeder Hinweis schon die
+  halbe Antwort; der Modus passt eher zu Aufgaben („Wie schreibe ich …?“).
 - **Temperatur 0,2:** sachlich statt kreativ.
 
 Die Antwort nennt, welche Quellen das Modell tatsächlich zitiert hat (`cited`). Daran lässt sich
@@ -243,6 +308,39 @@ in den Evals messen, ob Antworten belegt sind.
   später in Docker Compose, wo Dienste in beliebiger Reihenfolge starten.
 - **Dependency Injection:** `create_app(build_tutor)` nimmt die Funktion entgegen, die den Tutor
   baut. Die Tests übergeben einen Tutor mit Ersatzteilen.
+
+## Evals
+
+Tests prüfen, ob der Code tut, was er soll. Evals messen, wie gut das System antwortet. Das
+Sprachmodell ist nicht deterministisch, deshalb laufen die Evals getrennt von den Tests und mit
+dem echten Modell.
+
+**Testfragen** (`evals/questions.toml`), 40 Stück in vier Gruppen:
+
+| Gruppe | Anzahl | Erwartung |
+|---|---|---|
+| `im_buch` | 18 | richtige Antwort mit Quelle; darunter Umformulierungen ohne die Fachbegriffe des Buchs |
+| `nah_dran` | 8 | Absage; SQL-Themen, die das Buch nicht erklärt (geprüft gegen alle Chunks; MERGE und Isolationsstufen stehen nur in der Liste der Schlüsselwörter) |
+| `fremd` | 4 | Absage |
+| `sokratisch` | 10 | Hinweis und Frage ohne Lösung |
+
+Das erwartete Retrieval-Ziel ist ein Abschnitt („Kapitel > Abschnitt“), keine Chunk-ID. So bleiben
+die Fragen gültig, wenn sich das Chunking ändert.
+
+**Messgrößen**
+
+- Retrieval: Trefferquote@k (Anteil der Fragen mit einem passenden Abschnitt unter den ersten k
+  Treffern) und MRR (Mittelwert von 1/Rang). Dazu der höchste Ähnlichkeitswert je Gruppe als
+  Grundlage für eine mögliche Schwelle.
+- Antworten, automatisch: Quelle zitiert, Pflichtbegriffe vorhanden, Absage wörtlich wie
+  vorgegeben, im sokratischen Modus Form, Leck (SQL-Begriffe in Großbuchstaben, die nicht schon in
+  der Frage stehen, oder ein Codeblock) und Verweise auf Quellen, die die Lernenden nicht sehen.
+- Antworten, von Hand: Richtigkeit und Treue zur Quelle, je 0 bis 2, bewertet im Terminal mit den
+  Quelltexten daneben. Ein kleines Modell als Richter über ein gleich großes Modell wäre nicht
+  glaubwürdig; ein SQL-Dozent als Bewerter schon.
+
+**Grenzen:** 40 Fragen ergeben Tendenzen, keine statistisch belastbaren Unterschiede. Die
+Leck-Prüfung erkennt SQL-Begriffe, aber keine verratenen Tabellen- oder Spaltennamen.
 
 ## Testbarkeit
 
@@ -267,5 +365,13 @@ zur Antwort, ohne Modell und ohne Ollama.
   bestehen (lange Prozeduren, eine Tabelle aller Schlüsselwörter). Sie werden nicht zerschnitten.
   BGE-M3 verarbeitet sie vollständig. Der Chunk mit der Schlüsselwortliste taucht allerdings bei
   vielen fremden Fragen unter den Treffern auf. Die Evals zeigen, ob er ausgeschlossen werden sollte.
-- Die Token-Schätzung für den Prompt ist grob (Zeichen geteilt durch 3). Die Antwort enthält die
-  tatsächliche Zahl, sodass sich die Schätzung überprüfen lässt.
+- Die Token-Schätzung für den Prompt ist grob (Zeichen geteilt durch 3). Gemessen sind es etwa
+  3,9 Zeichen pro Token, die Schätzung liegt also rund 30 % zu hoch. Das ist gewollt: Lieber fällt
+  ein Auszug zu viel weg, als dass Ollama den Prompt still kürzt.
+- Der sokratische Modus ist ein Hinweismodus: Die API kennt keinen Gesprächsverlauf, die Frage
+  am Ende des Hinweises läuft deshalb ins Leere. Echtes sokratisches Lernen braucht den Dialog
+  (Tutor fragt, Lernende antworten, Tutor reagiert). Der nächste Schritt wäre ein Feld `history`
+  mit den bisherigen Nachrichten.
+- Eine genannte Quelle beweist nicht, dass die Aussage stimmt. Im Test stand hinter „HAVING kann
+  nur mit Aggregatfunktionen kombiniert werden“ eine passende Quelle, die Aussage ist trotzdem zu
+  stark verallgemeinert. Die Evals müssen prüfen, ob der Auszug die Aussage stützt.
