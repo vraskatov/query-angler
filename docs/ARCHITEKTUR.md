@@ -310,6 +310,16 @@ eine Abhängigkeit weniger, und dieselbe Testtechnik wie beim Wikibooks-Client.
   Modus Erklären geprüft. Seitdem: ein Muster für die Absage im sokratischen Prompt, ein Ausweg in
   der Rückmeldung, eine Absage im zweiten Versuch gilt, und vier Testfragen ohne Grundlage laufen
   auch im sokratischen Modus.
+- **Modus `erklaeren`:** Auf „Hallo Welt?“ schrieb das Modell einen Kurzlehrgang. Es deutete die
+  Frage um („ich nehme an, du meinst …“), erfand eine Tabelle, hängte „nächste Schritte“ an und
+  bot eine Fortsetzung an, obwohl die API keinen Verlauf kennt (38 s). Abgesagt hat es nicht,
+  weil „Hallo“ im Buch tatsächlich etwas findet: die Funktion `Hello`. Die alte Regel „Zeige ein
+  passendes SQL-Beispiel“ zwang es außerdem zum Erfinden, wenn die Quellen keins enthielten.
+  Seitdem: zuerst ein Satz mit der direkten Antwort, bei einem Gruß nur dieser Satz; alles
+  Weitere aus den Quellen, ohne eigene Tipps oder nächste Schritte; Beispiele aus den Quellen,
+  eigene als „Eigenes Beispiel:“ gekennzeichnet; keine Fortsetzung, keine Emojis. Eine feste
+  Längengrenze wurde verworfen: Sie träfe auch gute Antworten, und kleine Modelle halten
+  Wortgrenzen ungenau ein. Die Länge soll sich aus der Bindung an die Quellen ergeben.
 - **Temperatur 0,2:** sachlich statt kreativ.
 
 Die Antwort nennt, welche Quellen das Modell tatsächlich zitiert hat (`cited`). Daran lässt sich
@@ -460,7 +470,7 @@ Modell mit fester Skala und Stichproben durch einen Menschen ist eine übliche M
 | Treue zur Quelle | 1,28 von 2 |
 | … wenn der passende Abschnitt unter den Quellen war (13 Fragen) | 1,38 |
 | … wenn nicht (5 Fragen) | 1,00 |
-| Absage bei Fragen ohne Grundlage | 12 von 12 |
+| Absage bei Fragen ohne Grundlage | 12 von 12 (Lauf vom 13.11. mit 16 Fragen: 16 von 16, im sokratischen Modus 4 von 4) |
 | Sokratisch ohne SQL-Begriffe | 10 von 10 (vor der Prüfung im Code: 6 von 10) |
 | Sokratisch ohne Verweis auf Quellen | 3 von 10 (unverändert) |
 | Median Antwortzeit LLM: Erklären / Sokratisch / Absage | 13,1 / 7,8 / 5,4 s |
@@ -521,3 +531,19 @@ zur Antwort, ohne Modell und ohne Ollama.
 - Eine genannte Quelle beweist nicht, dass die Aussage stimmt. Im Test stand hinter „HAVING kann
   nur mit Aggregatfunktionen kombiniert werden“ eine passende Quelle, die Aussage ist trotzdem zu
   stark verallgemeinert. Die Evals müssen prüfen, ob der Auszug die Aussage stützt.
+
+## Ausblick: Betrieb an einer Hochschule
+
+Lokal läuft das Sprachmodell über Ollama. Ollama ist auf einfache lokale Nutzung ausgelegt; für
+viele gleichzeitige Nutzer wäre ein Inferenzserver wie vLLM die bessere Wahl, weil er gleichzeitige
+Anfragen laufend bündelt (Continuous Batching) und den Speicher dafür effizient verwaltet. Da die
+App das OpenAI-kompatible Format spricht, ändert sich dafür nur die Adresse in
+`QUERYANGLER_LLM_BASE_URL`.
+
+- **Mehr Last:** mehrere Kopien des Inferenzservers hinter einem Load Balancer. Weil jede Frage
+  einzeln beantwortet wird, kann jede Kopie jede Anfrage übernehmen.
+- **Gemeinsamer Index:** Der Index liegt derzeit als Datei beim Container. Mit mehreren
+  App-Kopien müssten alle denselben Stand sehen, sobald Lehrende Material hochladen; dafür
+  bräuchte es Chroma im Servermodus oder eine gemeinsame Vektordatenbank.
+- **Moodle:** Anbindung über LTI, damit der Tutor im Kurs erscheint und Lehrende ihr Material
+  dort pflegen.

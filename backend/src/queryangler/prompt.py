@@ -49,12 +49,17 @@ Regeln:
    widersprechen.
 7. Sprich die Lernenden direkt an und erkläre selbst, so als hättest du das Buch im
    Kopf. Den Text der Quellen bekommen sie nicht zu sehen.
-8. Antworte auf Deutsch, knapp und verständlich für Einsteiger."""
+8. Antworte auf Deutsch, knapp und verständlich für Einsteiger, ohne Emojis."""
 
 # Kleine Modelle übernehmen Wörter aus dem Prompt. Regeln sind deshalb positiv formuliert
 # ("sprich direkt an") statt als Verbot mit Zitat ("schreib nie 'in den Beispielen'"), und
 # Wörter wie "Beispiel aus den Quellen" kommen nicht vor: Das Modell schrieb sie sonst wörtlich
 # als Zwischenüberschrift in die Antwort.
+#
+# Im Modus Erklären schrieb das Modell auf "Hallo Welt?" einen Kurzlehrgang: Umdeutung der
+# Frage, eine erfundene Tabelle, "nächste Schritte" und ein Angebot zur Fortsetzung. Regel 10
+# ("Zeige ein passendes SQL-Beispiel") zwang es zum Erfinden, wenn die Quellen keins hatten.
+# Deshalb: direkte Antwort zuerst, Beispiele aus den Quellen, eigene ausdrücklich kennzeichnen.
 #
 # Im sokratischen Modus genügte "höchstens zwei Hinweise, dann eine Frage" nicht: Das
 # Modell hat die Lösung in die Hinweise gepackt (COUNT, GROUP BY, Spaltenname) und mit
@@ -62,8 +67,13 @@ Regeln:
 # ein Beispiel zeigen (zu einem anderen Thema, damit es nicht abgeschrieben wird).
 MODE_RULES: dict[Mode, str] = {
     "erklaeren": (
-        "9. Belege jede Aussage mit der Nummer ihrer Quelle, etwa [1] oder [2].\n"
-        "10. Zeige ein passendes SQL-Beispiel."
+        "9. Beginne mit einem Satz, der die Frage direkt beantwortet. Ist die Eingabe keine\n"
+        "   Frage zu SQL, etwa ein Gruß, antworte nur mit einem Satz, wobei du helfen kannst.\n"
+        "10. Alles Weitere muss aus den Quellen stammen; ergänze keine eigenen Tipps, Übungen\n"
+        "   oder nächsten Schritte. Belege jede Aussage mit der Nummer ihrer Quelle, etwa [1].\n"
+        "11. Nimm SQL-Beispiele aus den Quellen. Enthalten sie keins, zeige ein kurzes eigenes\n"
+        '   und schreibe "Eigenes Beispiel:" darüber.\n'
+        "12. Biete keine Fortsetzung an und stelle keine Rückfragen; du kennst den Verlauf nicht."
     ),
     "sokratisch": """9. Gib nur einen Denkanstoß, keine Lösung. Verboten sind: SQL-Code,
    SQL-Schlüsselwörter, Funktionen, Tabellen- und Spaltennamen, die zur Lösung gehören,
@@ -91,7 +101,7 @@ Muster zu einer Frage, die die Quellen nicht behandeln, etwa "Wie backe ich Brot
 
 # Die Erinnerung am Ende wirkt am stärksten. Sie wiederholt deshalb die Regeln des Modus.
 MODE_REMINDERS: dict[Mode, str] = {
-    "erklaeren": "Belege mit [1], [2] usw.",
+    "erklaeren": "Antworte zuerst direkt, belege mit [1], [2] usw. und ergänze nichts Eigenes.",
     "sokratisch": (
         "Kein SQL, keine Fachbegriffe der Lösung. Sprich die Lernenden direkt an. "
         'Antworte nur mit "Hinweis:" und "Frage:".'

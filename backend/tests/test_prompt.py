@@ -26,7 +26,9 @@ def test_rules_in_system_question_and_reminder_at_the_end():
         "Frage der Lernenden: Was macht HAVING?"
     )
     assert "[1] bis [2]" in user and NO_KNOWLEDGE in user.split("Erinnerung:")[1]
-    assert user.endswith("Sonst: Belege mit [1], [2] usw.")
+    assert user.endswith("belege mit [1], [2] usw. und ergänze nichts Eigenes.")
+    assert "Eigenes Beispiel:" in system and "keine Rückfragen" in system
+    assert "ohne Emojis" in system
 
 
 def test_excerpts_are_numbered_with_path_and_role_label():
@@ -59,11 +61,11 @@ def test_explain_mode_has_no_socratic_rules():
 def test_weakest_excerpts_are_dropped_when_too_long():
     hits = [hit(n, text="x" * 3000, score=1 - n / 10) for n in range(1, 6)]
     # Budget für Regeln, Frage und etwa zwei Auszüge à 1000 Token
-    prompt = build_prompt("Frage?", hits, "erklaeren", ANSWER_RESERVE_TOKENS + 2600)
+    prompt = build_prompt("Frage?", hits, "erklaeren", ANSWER_RESERVE_TOKENS + 2800)
 
     assert [h.id for h in prompt.hits] == ["seite#001", "seite#002"]
     assert prompt.dropped == 3
-    assert prompt.estimated_tokens <= 2600
+    assert prompt.estimated_tokens <= 2800
 
 
 def test_at_least_one_excerpt_is_kept():

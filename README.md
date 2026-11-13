@@ -24,6 +24,8 @@ Designentscheidungen und ihre Begründung: [docs/ARCHITEKTUR.md](docs/ARCHITEKTU
 - [x] Evals: Retrieval (Trefferquote, MRR) und Antworten (Absagen, sokratischer Modus, eigene Bewertung)
 - [ ] Docker Compose, CI
 
+Wie sich das für den Betrieb an einer Hochschule erweitern ließe (vLLM, mehrere Kopien, gemeinsamer Index, Moodle über LTI), steht in [docs/ARCHITEKTUR.md](docs/ARCHITEKTUR.md#ausblick-betrieb-an-einer-hochschule).
+
 ## Ingest ausführen
 
 Voraussetzung: [uv](https://docs.astral.sh/uv/). Python 3.12 lädt uv bei Bedarf selbst.
