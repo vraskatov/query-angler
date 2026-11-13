@@ -30,6 +30,7 @@ from queryangler.evals.checks import (
     is_refusal,
     leaked_keywords,
     load_questions,
+    matches_gold,
     mean_reciprocal_rank,
     meta_references,
     missing_keywords,
@@ -204,7 +205,13 @@ async def _run_answers(tutor: Any, questions: list[Question], label: str) -> lis
             except LLMError as error:
                 print(f"    Fehler: {error}")
                 continue
-            rows.append(_answer_row(q, answer, label))
+            row = _answer_row(q, answer, label)
+            # Quelltexte gleich mitspeichern: Chunk-Nummern können sich ändern, wenn der
+            # Index neu gebaut wird. Die Bewertung soll genau das zeigen, was das Modell sah.
+            texts = tutor.retriever.texts([s["id"] for s in row["sources"]])
+            for source in row["sources"]:
+                source["text"] = texts.get(source["id"], "")
+            rows.append(row)
     finally:
         await tutor.llm.aclose()
     return rows
@@ -230,6 +237,8 @@ def _answer_row(q: Question, answer: Any, label: str) -> dict[str, Any]:
         "attempts": answer.attempts,
         "checks": answer.checks,
     }
+    if q.gold:
+        row["gold_in_sources"] = any(matches_gold(s["path"], q.gold) for s in row["sources"])
     if q.group == "im_buch":
         row["cited_any"] = any(s.cited for s in answer.sources)
         row["missing_keywords"] = missing_keywords(text, q.keywords_all, q.keywords_any)
@@ -248,7 +257,9 @@ def _answer_row(q: Question, answer: Any, label: str) -> dict[str, Any]:
 def cmd_rate(args: argparse.Namespace) -> None:
     from queryangler.index.store import open_index
 
-    files = [Path(f) for f in args.files] or sorted(RESULTS_DIR.glob("answers_*.jsonl"))
+    # Ohne Angabe nur der neueste Lauf, sonst arbeitet man sich durch alte Läufe
+    newest = sorted(RESULTS_DIR.glob("answers_*.jsonl"), key=lambda p: p.stat().st_mtime)[-1:]
+    files = [Path(f) for f in args.files] or newest
     if not files:
         sys.exit("Keine Antworten gefunden. Bitte zuerst `answers` ausführen.")
     collection = open_index(config.INDEX_DIR, config.EMBED_MODEL, config.EMBED_REVISION)
@@ -256,8 +267,7 @@ def cmd_rate(args: argparse.Namespace) -> None:
     print(
         "Bewertung je 0, 1 oder 2. Leer lassen = überspringen, q = beenden (alles ist gespeichert)."
     )
-    print("Richtigkeit: 0 falsch, 1 teilweise richtig oder unvollständig, 2 richtig")
-    print("Treue:       0 Aussagen ohne Grundlage in den Quellen, 1 teilweise, 2 alles gedeckt\n")
+    print(RUBRIC)
     for path in files:
         rows = _read_jsonl(path)
         todo = [r for r in rows if r["group"] == "im_buch" and r.get("rating") is None]
@@ -272,7 +282,12 @@ def cmd_rate(args: argparse.Namespace) -> None:
             if correct is None or faithful is None:
                 continue
             note = input("Notiz (optional): ").strip()
-            row["rating"] = {"correct": correct, "faithful": faithful, "note": note}
+            row["rating"] = {
+                "correct": correct,
+                "faithful": faithful,
+                "note": note,
+                "rater": "mensch",
+            }
             _write_jsonl(path, rows)  # nach jeder Bewertung speichern
     print("Fertig. Bericht: uv run python -m queryangler.evals report")
 
@@ -287,13 +302,29 @@ def _show(row: dict[str, Any], collection: Any, position: str) -> None:
     if row.get("missing_keywords"):
         print(f"\n(Stichwortprüfung: fehlt {', '.join(row['missing_keywords'])})")
     cited = [s for s in row["sources"] if s["cited"]] or row["sources"]
-    texts = collection.get(ids=[s["id"] for s in cited], include=["documents"])
-    by_id = dict(zip(texts["ids"], texts["documents"], strict=True))
+    by_id = {s["id"]: s["text"] for s in cited if s.get("text")}
+    missing = [s["id"] for s in cited if s["id"] not in by_id]
+    if missing:  # ältere Läufe ohne gespeicherte Texte: aus dem Index (kann abweichen!)
+        stored = collection.get(ids=missing, include=["documents"])
+        by_id |= dict(zip(stored["ids"], stored["documents"], strict=True))
     print("\n--- QUELLEN (zitiert, sonst alle) ---")
     for s in cited:
         print(f"\n[{s['number']}] {s['path']}")
         print(textwrap.indent(by_id.get(s["id"], "(nicht im Index)")[:2500], "    "))
     print()
+
+
+RUBRIC = """\
+Richtigkeit (fachlich, egal was im Buch steht)
+  2  richtig und beantwortet die Frage
+  1  im Kern richtig, aber mit Fehler, schiefer Verallgemeinerung oder wichtiger Lücke
+  0  falsch, irreführend oder an der Frage vorbei
+Treue (steht es in den Quellen darunter?)
+  2  Kernaussage steht in den Quellen, alle Verweise stimmen; eigene Beispiele erkennbar
+  1  Kernaussage gedeckt, aber Details oder Verweise nicht; oder Kernaussage aus eigenem
+     Wissen, aber nicht als Buchinhalt ausgegeben
+  0  Kernaussage aus eigenem Wissen und dem Buch zugeschrieben, oder Quelle verfälscht
+"""
 
 
 def _ask_score(label: str) -> int | str | None:
@@ -313,14 +344,15 @@ def cmd_report(args: argparse.Namespace) -> None:
     if not files:
         sys.exit("Keine Antworten gefunden.")
     runs = {path.stem: _read_jsonl(path) for path in files}
-    report = _answers_report(runs)
+    gold = {q.id: q.gold for q in load_questions(QUESTIONS_FILE)}
+    report = _answers_report(runs, gold)
     out = RESULTS_DIR / "bericht.md"
     out.write_text(report, encoding="utf-8")
     print(report)
     print(f"-> {out}")
 
 
-def _derived(r: dict[str, Any]) -> dict[str, Any]:
+def _derived(r: dict[str, Any], gold: dict[str, list[str]] | None = None) -> dict[str, Any]:
     """Prüfungen aus dem Antworttext neu berechnen.
 
     So gelten für alte und neue Läufe dieselben Regeln, auch wenn sich eine Prüfung
@@ -336,12 +368,21 @@ def _derived(r: dict[str, Any]) -> dict[str, Any]:
         "leaked": leaked_keywords(text, question) + (["Codeblock"] if has_code_block(text) else []),
         "meta": meta_references(text),
         "retry": r.get("attempts", 1) > 1,
+        "gold_found": r.get("gold_in_sources")
+        if "gold_in_sources" in r
+        else (
+            any(matches_gold(s["path"], gold[r["id"]]) for s in r["sources"])
+            if gold and gold.get(r["id"])
+            else None
+        ),
     }
 
 
-def _answers_report(runs: dict[str, list[dict[str, Any]]]) -> str:
+def _answers_report(
+    runs: dict[str, list[dict[str, Any]]], gold: dict[str, list[str]] | None = None
+) -> str:
     names = list(runs)
-    derived = {name: [{**r, **_derived(r)} for r in rows] for name, rows in runs.items()}
+    derived = {name: [{**r, **_derived(r, gold)} for r in rows] for name, rows in runs.items()}
     lines = [
         "# Antworten",
         "",
@@ -358,9 +399,18 @@ def _answers_report(runs: dict[str, list[dict[str, Any]]]) -> str:
     def share(rows: list[dict[str, Any]], pred: Any) -> str:
         return f"{sum(1 for r in rows if pred(r))}/{len(rows)}" if rows else "–"
 
-    def rated(rows: list[dict[str, Any]], key: str) -> str:
-        scores = [r["rating"][key] for r in group(rows, "im_buch") if r.get("rating")]
-        return f"{mean(scores):.2f} (n={len(scores)})" if scores else "–"
+    def rated(rows: list[dict[str, Any]], key: str, found: bool | None = None) -> str:
+        rated_rows = [
+            r
+            for r in group(rows, "im_buch")
+            if r.get("rating") and (found is None or r["gold_found"] is found)
+        ]
+        if not rated_rows:
+            return "–"
+        scores = [r["rating"][key] for r in rated_rows]
+        human = sum(1 for r in rated_rows if r["rating"].get("rater", "mensch") == "mensch")
+        who = f"{human} Mensch, {len(rated_rows) - human} Claude"
+        return f"{mean(scores):.2f} (n={len(scores)}: {who})"
 
     def seconds(rows: list[dict[str, Any]]) -> str:
         return f"{median(r['llm_seconds'] for r in rows):.1f}" if rows else "–"
@@ -373,11 +423,27 @@ def _answers_report(runs: dict[str, list[dict[str, Any]]]) -> str:
         lambda rs: share(group(rs, "im_buch"), lambda r: not r["missing_keywords"]),
     )
     row("Fälschlich abgesagt", lambda rs: share(group(rs, "im_buch"), lambda r: r["refusal"]))
+    row(
+        "Richtiger Abschnitt unter den Quellen",
+        lambda rs: share(
+            [r for r in group(rs, "im_buch") if r["gold_found"] is not None],
+            lambda r: r["gold_found"],
+        ),
+    )
     row("Richtigkeit (0–2)", lambda rs: rated(rs, "correct"))
     row("Treue zur Quelle (0–2)", lambda rs: rated(rs, "faithful"))
+    row("… Treue, wenn Abschnitt gefunden", lambda rs: rated(rs, "faithful", True))
+    row("… Treue, wenn Abschnitt nicht gefunden", lambda rs: rated(rs, "faithful", False))
     row("**Absage, wo nötig**", lambda rs: "")
     row("Nah dran, nicht im Buch", lambda rs: share(group(rs, "nah_dran"), lambda r: r["refusal"]))
     row("Themenfremd", lambda rs: share(group(rs, "fremd"), lambda r: r["refusal"]))
+    row(
+        "… davon im sokratischen Modus",
+        lambda rs: share(
+            [r for r in group(rs, "nah_dran", "fremd") if r.get("mode") == "sokratisch"],
+            lambda r: r["refusal"],
+        ),
+    )
     row(
         "Modell hängte etwas an die Absage",
         lambda rs: share(group(rs, "nah_dran", "fremd"), lambda r: r["addition"]),

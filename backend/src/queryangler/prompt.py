@@ -70,7 +70,7 @@ MODE_RULES: dict[Mode, str] = {
    sowie Verweise wie [1].
    Beschreibe stattdessen in Alltagssprache, worüber die Lernenden als Nächstes
    nachdenken sollen.
-10. Antworte genau in dieser Form und mit nichts sonst:
+10. Behandeln die Quellen die Frage, antworte genau in dieser Form und mit nichts sonst:
    Hinweis: <ein bis zwei Sätze>
    Frage: <eine offene Frage, deren Antwort nicht im Hinweis steht und die man nicht
    mit Ja oder Nein beantworten kann. Die Lernenden müssen sie allein durch Nachdenken
@@ -83,7 +83,10 @@ Schlecht (verrät die Lösung, die Frage ist schon beantwortet):
 Gut:
    Hinweis: Eine Datenbank liefert Zeilen ohne feste Reihenfolge. Eine Reihenfolge
    gibt es erst, wenn du sie ausdrücklich verlangst.
-   Frage: An welcher Stelle deiner Abfrage würdest du festlegen, wonach geordnet wird?""",
+   Frage: An welcher Stelle deiner Abfrage würdest du festlegen, wonach geordnet wird?
+
+Muster zu einer Frage, die die Quellen nicht behandeln, etwa "Wie backe ich Brot?":
+   Dazu enthält meine Wissensbasis nichts.""",
 }
 
 # Die Erinnerung am Ende wirkt am stärksten. Sie wiederholt deshalb die Regeln des Modus.

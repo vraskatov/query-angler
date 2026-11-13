@@ -111,3 +111,19 @@ def test_thinking_block_is_removed():
         client_with(lambda request: httpx.Response(200, json=data)).complete(MESSAGES)
     )
     assert result.text == "Antwort."
+
+
+def test_warm_up_sends_a_tiny_request_and_ignores_errors():
+    seen = {}
+
+    def handler(request):
+        seen["body"] = json.loads(request.content)
+        return httpx.Response(200, json=COMPLETION)
+
+    asyncio.run(client_with(handler).warm_up())
+    assert seen["body"]["max_tokens"] == 1
+
+    def down(request):
+        raise httpx.ConnectError("Ollama läuft noch nicht")
+
+    asyncio.run(client_with(down).warm_up())  # kein Fehler

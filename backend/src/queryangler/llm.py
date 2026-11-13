@@ -5,6 +5,7 @@ mit model und messages). Ollama, Mistral, vLLM, LM Studio und andere bieten es a
 Welcher Anbieter antwortet, entscheidet allein die Adresse in der Konfiguration.
 """
 
+import contextlib
 import re
 import time
 from dataclasses import dataclass
@@ -93,6 +94,24 @@ class OpenAICompatibleClient:
             prompt_tokens=usage.get("prompt_tokens"),
             completion_tokens=usage.get("completion_tokens"),
         )
+
+    async def warm_up(self) -> None:
+        """Lädt das Modell vorab, damit die erste echte Frage nicht warten muss.
+
+        Ollama lädt ein Modell erst bei der ersten Anfrage in den Grafikspeicher; das kann
+        je nach Hardware deutlich länger dauern als eine normale Antwort. Fehler werden
+        ignoriert: Ist Ollama noch nicht da, lädt eben die erste echte Frage das Modell.
+        """
+        with contextlib.suppress(httpx.HTTPError):
+            await self._client.post(
+                "chat/completions",
+                json={
+                    "model": self.model,
+                    "messages": [{"role": "user", "content": "Hallo"}],
+                    "max_tokens": 1,
+                    "stream": False,
+                },
+            )
 
     async def is_reachable(self) -> bool:
         try:

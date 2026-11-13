@@ -25,10 +25,13 @@ class Question:
     gold: list[str] = field(default_factory=list)
     keywords_all: list[str] = field(default_factory=list)
     keywords_any: list[str] = field(default_factory=list)
+    # Standard: sokratisch nur in der Gruppe "sokratisch". Absagen werden zusätzlich
+    # im sokratischen Modus geprüft, weil die feste Form dort gegen die Absage drückt.
+    mode: Mode | None = None
 
-    @property
-    def mode(self) -> Mode:
-        return "sokratisch" if self.group == "sokratisch" else "erklaeren"
+    def __post_init__(self) -> None:
+        if self.mode is None:
+            self.mode = "sokratisch" if self.group == "sokratisch" else "erklaeren"
 
 
 def load_questions(path: Path) -> list[Question]:

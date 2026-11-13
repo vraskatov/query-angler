@@ -80,6 +80,7 @@ onBeforeUnmount(() => clearInterval(timer));
         Beispiel, im Modus <strong>Sokratisch</strong> nur einen Hinweis und eine Rückfrage, damit
         du selbst auf die Lösung kommst.
       </p>
+      <p>Die erste Frage kann etwas länger dauern, weil das Sprachmodell erst geladen wird.</p>
       <p class="examples">
         Zum Beispiel:
         <button v-for="example in examples" :key="example" class="chip" @click="question = example">
@@ -96,6 +97,10 @@ onBeforeUnmount(() => clearInterval(timer));
 
       <p v-if="!entry.answer && !entry.error" class="waiting">
         Der Tutor denkt nach … {{ seconds }} s
+        <span v-if="seconds >= 5" class="note">
+          Beim ersten Mal oder nach längerer Pause wird das Sprachmodell erst geladen, das kann
+          etwas länger dauern.
+        </span>
       </p>
       <p v-if="entry.error" class="error">{{ entry.error }}</p>
 

@@ -303,6 +303,13 @@ eine Abhängigkeit weniger, und dieselbe Testtechnik wie beim Wikibooks-Client.
   „Quellen“ oder „Beispiele“. Deshalb prüft seitdem der Code die Ausgabe (nächster Abschnitt).
   Bei Begriffsfragen („Was unterscheidet …?“) ist jeder Hinweis schon die halbe Antwort; der
   Modus passt eher zu Aufgaben („Wie schreibe ich …?“).
+
+  Nachtrag aus dem Ausprobieren: Auf „Was ist das Leben?“ kam im sokratischen Modus ein Hinweis
+  auf Trigger statt einer Absage. Die feste Form „Hinweis/Frage“ drückte gegen die Absage, und
+  die Rückmeldung für den zweiten Versuch bot gar keine Absage an. Die Evals hatten Absagen nur im
+  Modus Erklären geprüft. Seitdem: ein Muster für die Absage im sokratischen Prompt, ein Ausweg in
+  der Rückmeldung, eine Absage im zweiten Versuch gilt, und vier Testfragen ohne Grundlage laufen
+  auch im sokratischen Modus.
 - **Temperatur 0,2:** sachlich statt kreativ.
 
 Die Antwort nennt, welche Quellen das Modell tatsächlich zitiert hat (`cited`). Daran lässt sich
@@ -334,6 +341,13 @@ mit denselben Funktionen, die auch die Evals verwenden:
   rechnet auf der CPU und läuft deshalb in einem eigenen Thread (`asyncio.to_thread`).
 - **Fehler mit passenden Statuscodes:** ungültige Eingabe 422, Sprachmodell nicht erreichbar oder
   Index fehlt 503, Zeitüberschreitung 504, Fehler des Sprachmodells 502.
+- **Aufwärmen beim Start:** Ollama lädt ein Modell erst bei der ersten Anfrage in den
+  Grafikspeicher und entlädt es nach einigen Minuten ohne Anfrage wieder. Die erste Frage dauerte
+  dadurch spürbar länger. Der Server schickt deshalb beim Start im Hintergrund eine winzige Anfrage
+  (`warm_up`), ohne den Start zu blockieren; die Oberfläche weist bei längerer Wartezeit darauf
+  hin. Gegen das Entladen hilft `OLLAMA_KEEP_ALIVE` beim Ollama-Dienst. Im Betrieb an einer
+  Hochschule liefe das Modell ohnehin dauerhaft auf einem Inferenzserver; dank des
+  OpenAI-kompatiblen Formats ändert sich dafür nur die Adresse.
 - **Start auch ohne Index:** `/health` nennt dann den Grund, `/ask` antwortet mit 503. Das hilft
   später in Docker Compose, wo Dienste in beliebiger Reihenfolge starten.
 - **Dependency Injection:** `create_app(build_tutor)` nimmt die Funktion entgegen, die den Tutor
@@ -384,14 +398,17 @@ Tests prüfen, ob der Code tut, was er soll. Evals messen, wie gut das System an
 Sprachmodell ist nicht deterministisch, deshalb laufen die Evals getrennt von den Tests und mit
 dem echten Modell.
 
-**Testfragen** (`evals/questions.toml`), 40 Stück in vier Gruppen:
+**Testfragen** (`evals/questions.toml`), 44 Stück in vier Gruppen:
 
 | Gruppe | Anzahl | Erwartung |
 |---|---|---|
 | `im_buch` | 18 | richtige Antwort mit Quelle; darunter Umformulierungen ohne die Fachbegriffe des Buchs |
-| `nah_dran` | 8 | Absage; SQL-Themen, die das Buch nicht erklärt (geprüft gegen alle Chunks; MERGE und Isolationsstufen stehen nur in der Liste der Schlüsselwörter) |
-| `fremd` | 4 | Absage |
+| `nah_dran` | 10 | Absage; SQL-Themen, die das Buch nicht erklärt (geprüft gegen alle Chunks; MERGE und Isolationsstufen stehen nur in der Liste der Schlüsselwörter) |
+| `fremd` | 6 | Absage |
 | `sokratisch` | 10 | Hinweis und Frage ohne Lösung |
+
+Vier der Absage-Fragen (zwei aus `nah_dran`, zwei aus `fremd`) laufen mit `mode = "sokratisch"`,
+damit die Absage auch in diesem Modus geprüft wird.
 
 Das erwartete Retrieval-Ziel ist ein Abschnitt („Kapitel > Abschnitt“), keine Chunk-ID. So bleiben
 die Fragen gültig, wenn sich das Chunking ändert.
@@ -456,7 +473,7 @@ Lesart:
   nicht die Verweise auf „die Beispiele“. Das Modell beschreibt seine Quellen offenbar so
   hartnäckig, dass eine Begründung allein nicht reicht. Er kostet im Median gut 3 Sekunden.
 
-**Grenzen:** 40 Fragen ergeben Tendenzen, keine statistisch belastbaren Unterschiede; die Treue-
+**Grenzen:** 44 Fragen ergeben Tendenzen, keine statistisch belastbaren Unterschiede; die Treue-
 Werte nach Retrieval-Treffer beruhen auf 13 und 5 Antworten. Die Leck-Prüfung erkennt
 SQL-Begriffe, aber keine verratenen Tabellen- oder Spaltennamen.
 

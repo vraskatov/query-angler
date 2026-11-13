@@ -43,6 +43,7 @@ def test_socratic_mode_in_rules_and_in_final_reminder():
         m["content"] for m in build_prompt("Frage?", [hit(1)], "sokratisch", 8192).messages
     )
     assert "Verboten sind: SQL-Code" in system
+    assert "Wie backe ich Brot?" in system  # Muster für die Absage im sokratischen Modus
     assert "Beispiel aus den Quellen" not in system + user  # würde wörtlich übernommen
     assert "Hinweis: <" in system and "Frage: <" in system  # feste Form
     assert "Belege jede Aussage" not in system  # Verweise würden auf die Lösung zeigen

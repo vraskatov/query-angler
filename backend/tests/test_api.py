@@ -198,3 +198,14 @@ def test_explain_mode_is_not_checked_for_sql(tmp_path):
     llm = FakeLLM(text="Mit COUNT und GROUP BY [1].")
     answer = ask(make_tutor(tmp_path, llm), "Wie zähle ich Abteilungen pro Ort?", "erklaeren")
     assert answer.attempts == 1 and answer.checks == []
+
+
+def test_socratic_refusal_in_second_attempt_wins(tmp_path):
+    # Wie bei "Was ist das Leben?": erst ein gebastelter Hinweis, dann die Absage
+    llm = FakeLLM(texts=["Hinweis: Denk an Trigger.\nFrage: Was passiert, wenn …?", NO_KNOWLEDGE])
+    llm.texts[0] = "Hinweis: In den Beispielen steht etwas zu Triggern.\nFrage: Was passiert dann?"
+    answer = ask(make_tutor(tmp_path, llm), "Was ist das Leben?", "sokratisch")
+    assert answer.text == NO_KNOWLEDGE
+    assert answer.attempts == 2
+    assert "Absage im zweiten Versuch" in answer.checks[0]
+    assert NO_KNOWLEDGE in llm.calls[1][-1]["content"]  # die Rückmeldung bietet den Ausweg an

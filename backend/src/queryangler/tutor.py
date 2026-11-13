@@ -122,6 +122,8 @@ class Tutor:
 
         Ausgeliefert wird die Antwort mit weniger Problemen. Bleiben welche, steht das in
         den Prüfhinweisen, damit es sichtbar ist (in der API-Antwort und in den Evals).
+        Sagt der zweite Versuch ab, gilt die Absage: Meist war die Frage fachfremd, und der
+        erste Versuch hatte nur wegen der festen Form trotzdem einen Hinweis gebastelt.
         """
         problems = socratic_problems(first.text, question)
         if not problems:
@@ -132,11 +134,11 @@ class Tutor:
             {"role": "user", "content": socratic_retry_message(problems)},
         ]
         second = await self.llm.complete(retry_messages)
-        if is_refusal(second.text):  # zweiter Versuch darf nicht plötzlich absagen
+        if is_refusal(second.text):
             return (
-                first.text,
+                NO_KNOWLEDGE,
                 second,
-                [f"Zweiter Versuch sagte ab; erste Antwort: {'; '.join(problems)}"],
+                [f"Absage im zweiten Versuch; erste Antwort: {'; '.join(problems)}"],
             )
         second_problems = socratic_problems(second.text, question)
         checks = [f"Zweiter Versuch, weil {'; '.join(problems)}"]

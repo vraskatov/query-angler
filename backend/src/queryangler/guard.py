@@ -107,5 +107,8 @@ def socratic_retry_message(problems: list[str]) -> str:
         f"Deine Antwort passt noch nicht: {'; '.join(problems)}. "
         "Schreib sie neu. Kein SQL, keine Fachbegriffe der Lösung. Sprich die Lernenden "
         "direkt an und erkläre in Alltagssprache, worüber sie nachdenken sollen. "
-        'Antworte nur mit "Hinweis:" und "Frage:".'
+        'Antworte nur mit "Hinweis:" und "Frage:". '
+        # Ohne diesen Ausweg bastelte das Modell bei "Was ist das Leben?" einen Hinweis
+        # auf Trigger, statt abzusagen.
+        f'Hat die Frage nichts mit den Quellen zu tun, antworte stattdessen nur: "{NO_KNOWLEDGE}"'
     )

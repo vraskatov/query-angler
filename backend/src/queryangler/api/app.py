@@ -89,9 +89,16 @@ def create_app(
             app.state.tutor = build_tutor()
             retriever = app.state.tutor.retriever
             app.state.sources = SourceManager(retriever.collection, retriever.embedder, upload_dir)
+            # Modell im Hintergrund vorladen; der Server ist sofort erreichbar
+            warm_up = getattr(app.state.tutor.llm, "warm_up", None)
+            if warm_up:
+                app.state.warm_up = asyncio.create_task(warm_up())
         except (IndexUnavailableError, ModelUnavailableError) as error:
             app.state.startup_error = str(error)
         yield
+        task = getattr(app.state, "warm_up", None)
+        if task and not task.done():
+            task.cancel()
         aclose = getattr(getattr(app.state.tutor, "llm", None), "aclose", None)
         if aclose:
             await aclose()

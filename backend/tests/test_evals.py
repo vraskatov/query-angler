@@ -26,6 +26,13 @@ def test_question_file_is_valid():
     # Wer ein Retrieval-Ziel braucht, hat eines
     assert all(q.gold for q in questions if q.group in ("im_buch", "sokratisch"))
     assert all(q.mode == "sokratisch" for q in questions if q.group == "sokratisch")
+    # Absagen werden auch im sokratischen Modus geprüft
+    assert {q.group for q in questions if q.mode == "sokratisch"} == {
+        "sokratisch",
+        "fremd",
+        "nah_dran",
+    }
+    assert all(q.mode == "erklaeren" for q in questions if q.group == "im_buch")
 
 
 def test_gold_rank_matches_section_and_subsections():
@@ -114,7 +121,7 @@ def test_report_recomputes_checks_from_the_answer_text():
     assert "| Nah dran, nicht im Buch | 1/1 |" in report
     assert "| Themenfremd | 0/1 |" in report
     assert "| Modell hängte etwas an die Absage | 1/2 |" in report
-    assert "| Richtigkeit (0–2) | 2.00 (n=1) |" in report
+    assert "| Richtigkeit (0–2) | 2.00 (n=1: 1 Mensch, 0 Claude) |" in report
     assert "| Ohne SQL-Begriffe (Leck) | 0/1 |" in report
     assert "| Zweiter Versuch nötig | 1/1 |" in report
     assert "`c`: keine Absage" in report
@@ -138,3 +145,31 @@ def test_retrieval_report_compares_variants():
     assert "| Trefferquote@20 | 50 % | 100 % |" in report
     assert "| `b` | – | 15 |" in report
     assert "| fremd | 0.400 | 0.400 | 0.400 |" in report
+
+
+def test_report_splits_faithfulness_by_retrieval_hit():
+    base = {
+        "model": "m",
+        "label": "m",
+        "llm_seconds": 1.0,
+        "group": "im_buch",
+        "question": "?",
+        "answer": "A [1].",
+        "cited_any": True,
+        "missing_keywords": [],
+    }
+    rows = [
+        {**base, "id": "a", "sources": [{"path": "K > Ziel", "cited": True}],
+         "rating": {"correct": 2, "faithful": 2, "note": "", "rater": "mensch"}},
+        {**base, "id": "b", "sources": [{"path": "K > Anderes", "cited": True}],
+         "rating": {"correct": 2, "faithful": 1, "note": "", "rater": "claude"}},
+        # neuer Lauf: Treffer schon beim Lauf gespeichert
+        {**base, "id": "c", "sources": [], "gold_in_sources": False,
+         "rating": {"correct": 1, "faithful": 1, "note": "", "rater": "claude"}},
+    ]  # fmt: skip
+    gold = {"a": ["K > Ziel"], "b": ["K > Ziel"], "c": ["K > Ziel"]}
+    report = _answers_report({"lauf": rows}, gold)
+    assert "| Richtiger Abschnitt unter den Quellen | 1/3 |" in report
+    assert "| Treue zur Quelle (0–2) | 1.33 (n=3: 1 Mensch, 2 Claude) |" in report
+    assert "| … Treue, wenn Abschnitt gefunden | 2.00 (n=1: 1 Mensch, 0 Claude) |" in report
+    assert "| … Treue, wenn Abschnitt nicht gefunden | 1.00 (n=2: 0 Mensch, 2 Claude) |" in report

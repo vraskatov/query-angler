@@ -47,6 +47,7 @@ const active = ref("ask");
     <a href="https://de.wikibooks.org/wiki/Einf%C3%BChrung_in_SQL" target="_blank" rel="noopener"
       >„Einführung in SQL“</a
     >
-    (CC BY-SA 4.0) und eigenem Material der Lehrenden. Lokal erzeugt, kann Fehler enthalten.
+    (CC BY-SA 4.0) und, falls vorhanden, Material, das Lehrende unter „Wissensbasis“ hochgeladen
+    haben. Lokal erzeugt, kann Fehler enthalten.
   </footer>
 </template>

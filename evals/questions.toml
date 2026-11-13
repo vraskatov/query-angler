@@ -11,6 +11,8 @@
 #                "Kapitel > Abschnitt". Ein Eintrag passt auch auf alle Unterabschnitte.
 # keywords_all:  Begriffe, die in einer richtigen Antwort alle vorkommen müssen.
 # keywords_any:  Begriffe, von denen mindestens einer vorkommen muss.
+# mode:          optional "sokratisch" oder "erklaeren"; Standard: sokratisch nur in der
+#                Gruppe "sokratisch".
 
 # --- Im Buch -----------------------------------------------------------------
 
@@ -224,6 +226,33 @@ question = "Wer hat die Fußball-WM 2014 gewonnen?"
 id = "sverweis"
 group = "fremd"
 question = "Wie benutze ich in Excel einen SVERWEIS?"
+
+# Absagen auch im sokratischen Modus: Dort drückt die feste Form "Hinweis/Frage" gegen
+# die Absage. Gefunden durch "Was ist das Leben?", worauf ein Hinweis zu Triggern kam.
+
+[[question]]
+id = "s-fremd-leben"
+group = "fremd"
+mode = "sokratisch"
+question = "Was ist das Leben?"
+
+[[question]]
+id = "s-fremd-apfelkuchen"
+group = "fremd"
+mode = "sokratisch"
+question = "Wie backe ich einen Apfelkuchen?"
+
+[[question]]
+id = "s-nah-lag"
+group = "nah_dran"
+mode = "sokratisch"
+question = "Wie greife ich mit LAG auf den Wert der vorherigen Zeile zu?"
+
+[[question]]
+id = "s-nah-json-value"
+group = "nah_dran"
+mode = "sokratisch"
+question = "Wie funktioniert JSON_VALUE?"
 
 # --- Sokratisch: Aufgaben -------------------------------------------------------
 
