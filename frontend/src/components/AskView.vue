@@ -54,6 +54,18 @@ function render(text) {
   return DOMPurify.sanitize(marked.parse(text));
 }
 
+// Bei einer Absage gehören die gefundenen Abschnitte nicht zur Antwort.
+function showSources(answer) {
+  return answer.sources.length > 0 && !answer.text.startsWith("Dazu enthält meine Wissensbasis nichts");
+}
+
+// Zitiert eine Erklärung keine Quelle (etwa bei einem Gruß), heißt die Liste anders,
+// damit niemand denkt, die Antwort stütze sich darauf.
+function sourcesLabel(entry) {
+  if (entry.mode === "sokratisch") return "Zum Nachlesen";
+  return entry.answer.sources.some((s) => s.cited) ? "Quellen" : "Gefundene Abschnitte, nicht zitiert";
+}
+
 function link(source) {
   return source.permalink || source.url || null;
 }
@@ -108,9 +120,9 @@ onBeforeUnmount(() => clearInterval(timer));
         <div class="answer" v-html="render(entry.answer.text)" />
         <p v-for="note in notes(entry.answer)" :key="note" class="note">{{ note }}</p>
 
-        <details v-if="entry.answer.sources.length" class="sources" :open="entry.mode === 'sokratisch'">
+        <details v-if="showSources(entry.answer)" class="sources" :open="entry.mode === 'sokratisch'">
           <summary>
-            {{ entry.mode === "sokratisch" ? "Zum Nachlesen" : "Quellen" }}
+            {{ sourcesLabel(entry) }}
             ({{ entry.answer.sources.length }})
           </summary>
           <ol>

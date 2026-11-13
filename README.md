@@ -11,8 +11,6 @@ Ausgelegt für ein lokal laufendes Sprachmodell (Ollama), sodass keine Daten den
 Wissensbasis ist das Wikibook „Einführung in SQL“ (CC BY-SA), siehe [ATTRIBUTION.md](ATTRIBUTION.md).
 Designentscheidungen und ihre Begründung: [docs/ARCHITEKTUR.md](docs/ARCHITEKTUR.md).
 
-> Projekt im Aufbau.
-
 ## Stand
 
 - [x] Ingest: Kapitel über die MediaWiki-API laden, Revisionen festhalten, HTML bereinigen
@@ -22,9 +20,43 @@ Designentscheidungen und ihre Begründung: [docs/ARCHITEKTUR.md](docs/ARCHITEKTU
 - [x] Generierung: API mit FastAPI, lokales Sprachmodell über Ollama, Antwort mit Quellen
 - [x] Oberfläche: Fragen mit Schalter Erklären/Sokratisch, Wissensbasis mit Upload für Lehrende
 - [x] Evals: Retrieval (Trefferquote, MRR) und Antworten (Absagen, sokratischer Modus, eigene Bewertung)
-- [ ] Docker Compose, CI
+- [x] Docker Compose (App und Ollama mit GPU), CI mit GitHub Actions (Tests, Ruff, Build der Oberfläche)
 
 Wie sich das für den Betrieb an einer Hochschule erweitern ließe (vLLM, mehrere Kopien, gemeinsamer Index, Moodle über LTI), steht in [docs/ARCHITEKTUR.md](docs/ARCHITEKTUR.md#ausblick-betrieb-an-einer-hochschule).
+
+## Mit Docker starten
+
+Voraussetzung: Docker mit Compose. Für die GPU eine NVIDIA-Karte mit dem
+[NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/);
+prüfen mit `docker run --rm --gpus all ubuntu nvidia-smi`. Läuft Ollama schon direkt auf dem
+Rechner, vorher beenden (unter Linux meist `sudo systemctl stop ollama`), sonst sind Port und
+Grafikspeicher belegt.
+
+```bash
+docker compose build
+
+# einmalig: Embedding-Modell und Reranker in das Volume hf-models laden (ca. 4,5 GB)
+docker compose run --rm app python -m queryangler.index models
+
+# nur falls data/index/ fehlt: Chunks aus den versionierten Rohdaten erzeugen und einbetten
+docker compose run --rm app python -m queryangler.ingest clean
+docker compose run --rm app python -m queryangler.ingest chunk
+docker compose run --rm app python -m queryangler.index build
+
+docker compose up -d
+
+# einmalig: Sprachmodell holen und mit unserem Modelfile anlegen
+docker compose exec ollama ollama pull ministral-3:8b
+docker compose exec ollama ollama create query-angler -f /modelfiles/Modelfile
+```
+
+Danach läuft der Tutor unter <http://localhost:8000/>. `docker compose ps` zeigt den Zustand,
+`docker compose logs -f app` die Ausgaben. Ein Hugging-Face-Token für den Download kommt bei
+Bedarf aus der Umgebung des Rechners: `docker compose run --rm -e HF_TOKEN app …` übernimmt die
+Variable, ohne dass ihr Wert im Befehl steht.
+
+Die Evals laufen weiter auf dem Rechner (`uv run …`) und nutzen das Ollama im Container, weil
+Port 11434 freigegeben ist.
 
 ## Ingest ausführen
 
@@ -157,6 +189,12 @@ cd backend
 uv run pytest
 uv run ruff check . && uv run ruff format --check .
 ```
+
+## Lizenz
+
+Der Code steht unter der [MIT-Lizenz](LICENSE). Der Text des Wikibooks in `data/raw/` und alles
+daraus Abgeleitete steht unter CC BY-SA 4.0, siehe [ATTRIBUTION.md](ATTRIBUTION.md).
+Hochgeladenes Material steht unter der Lizenz, die beim Hochladen angegeben wird.
 
 ## Herkunft
 

@@ -1,0 +1,41 @@
+# Query Angler mit einem Befehl starten: App (API und Oberfläche) und Sprachmodell.
+#   docker compose up -d --build
+# Einmalig vorher bzw. danach die Modelle laden, siehe README, Abschnitt "Mit Docker starten".
+
+services:
+  app:
+    build: .
+    image: query-angler
+    ports:
+      - "127.0.0.1:8000:8000"   # nur auf diesem Rechner erreichbar
+    environment:
+      # Dienstname als Hostname: Compose legt ein Netz an, in dem sich die Dienste so finden
+      QUERYANGLER_LLM_BASE_URL: http://ollama:11434/v1
+    volumes:
+      - ./data:/app/data                    # Index und hochgeladenes Material bleiben beim Rechner
+      - hf-models:/models/huggingface       # BGE-M3, siehe HF_HOME im Dockerfile
+    depends_on:
+      - ollama                              # nur die Startreihenfolge; Ollama darf später bereit sein
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest             # für feste Versionen: Tag der lokal getesteten Version
+    ports:
+      - "127.0.0.1:11434:11434"             # damit Evals vom Rechner aus dieses Ollama nutzen
+    environment:
+      OLLAMA_KEEP_ALIVE: 30m                # Modell 30 Minuten nach der letzten Frage im Speicher halten
+    volumes:
+      - ollama-models:/root/.ollama         # heruntergeladene Sprachmodelle
+      - ./ollama:/modelfiles:ro             # unser Modelfile, nur lesend
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    restart: unless-stopped
+
+volumes:
+  hf-models:
+  ollama-models:

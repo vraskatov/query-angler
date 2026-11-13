@@ -1,0 +1,13 @@
+# Nur Code und Paketlisten gehören ins Image.
+.git
+**/.venv
+**/node_modules
+**/__pycache__
+**/.pytest_cache
+**/.ruff_cache
+frontend/dist
+data/
+evals/
+docs/
+*.zip
+.env

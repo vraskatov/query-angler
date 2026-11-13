@@ -379,6 +379,9 @@ mit denselben Funktionen, die auch die Evals verwenden:
   der als HTML in die Seite kommt; ohne Bereinigung könnte eine Antwort Skripte einschleusen.
 - **Ehrlich zu den Grenzen:** Unter dem Eingabefeld steht, dass jede Frage einzeln beantwortet
   wird. Hat der Tutor abgesagt oder einen zweiten Versuch gebraucht, steht das unter der Antwort.
+- **Quellenliste passend zur Antwort:** Bei einer Absage erscheint keine Liste. Zitiert eine
+  Erklärung keine Quelle, etwa bei einem Gruß, heißt die Liste „Gefundene Abschnitte, nicht
+  zitiert“. Ganz ausblenden wäre falsch, denn auch eine echte Antwort vergisst manchmal das Zitat.
 - **Auslieferung durch FastAPI** (`StaticFiles`), eingehängt nach allen API-Routen, damit `/ask`
   oder `/docs` Vorrang haben. Ein eigener Container mit nginx wäre in großen Projekten üblich, hier
   aber ein Dienst mehr ohne Nutzen. Beim Entwickeln leitet Vite die API-Aufrufe weiter, so braucht
@@ -483,6 +486,26 @@ Lesart:
   nicht die Verweise auf „die Beispiele“. Das Modell beschreibt seine Quellen offenbar so
   hartnäckig, dass eine Begründung allein nicht reicht. Er kostet im Median gut 3 Sekunden.
 
+**Lauf vom 13.11.2026 mit den neuen Regeln für den Modus Erklären** (direkte Antwort zuerst,
+alles Weitere aus den Quellen, keine Fortsetzung, siehe Prompt):
+
+| Kennzahl | vorher | nachher |
+|---|---|---|
+| Median Antwortzeit LLM: Erklären / Absage | 12,9 / 4,8 s | 6,7 / 1,6 s |
+| Absage bei Fragen ohne Grundlage | 16 von 16 | 16 von 16 |
+| Modell hängte etwas an die Absage (vom Code entfernt) | 12 von 16 | 0 von 16 |
+| Sokratisch: Form eingehalten | 8 von 10 | 10 von 10 |
+| Stichworte vollständig, Fragen im Buch | 18 von 18 | 16 von 18 |
+
+Die zwei fehlenden Stichworte: Bei „Was unterscheidet WHERE von HAVING?“ steht „Gruppierung“
+statt „GROUP BY“, die Antwort ist richtig; hier ist die Prüfung zu wörtlich. Bei der Frage nach
+einer Fallunterscheidung fand das Retrieval den Abschnitt zu `CASE` nicht. Vorher nannte das
+Modell `CASE` trotzdem, aus eigenem Wissen; jetzt hält es sich an die Quellen und erklärt
+fälschlich `WHERE` mit `AND`/`OR`, mit einem erfundenen, nicht gekennzeichneten Beispiel. Die
+strengere Bindung an die Quellen macht also einen Fehler des Retrievals sichtbar, den das Modell
+vorher mit eigenem Wissen verdeckt hatte. Für einen Tutor, der sich auf das Buch beruft, ist das
+die ehrlichere Variante; die Abhilfe gehört ins Retrieval (Query Rewriting). Die Regeln bleiben.
+
 **Grenzen:** 44 Fragen ergeben Tendenzen, keine statistisch belastbaren Unterschiede; die Treue-
 Werte nach Retrieval-Treffer beruhen auf 13 und 5 Antworten. Die Leck-Prüfung erkennt
 SQL-Begriffe, aber keine verratenen Tabellen- oder Spaltennamen.
@@ -498,6 +521,35 @@ Für Index, Tutor und API ersetzen zwei Ersatzteile die großen Modelle (`tests/
 Embedder, der Wörter zählt, und ein Sprachmodell mit fester Antwort, das sich den erhaltenen Prompt
 merkt. Der Chroma-Index dagegen ist echt. So prüfen die Tests den ganzen Weg von der Anfrage bis
 zur Antwort, ohne Modell und ohne Ollama.
+
+## Betrieb mit Docker
+
+`docker compose up` startet zwei Dienste: `app` (API und Oberfläche) und `ollama` (Sprachmodell
+auf der GPU). Ein eigener Dienst für die Oberfläche (nginx) entfällt, weil FastAPI sie ausliefert.
+
+- **Multi-Stage-Build:** Die erste Stufe baut die Oberfläche mit Node, ins fertige Image kommt nur
+  `frontend/dist`. Node und `node_modules` bleiben zurück.
+- **Schichten nach Änderungshäufigkeit:** erst die Paketlisten (`package-lock.json`, `uv.lock`)
+  und die Installation, dann der Code. Eine Codeänderung baut nur die letzten Schichten neu.
+- **Dieselben Versionen überall:** `uv sync --frozen --no-dev` installiert genau `uv.lock`, wie
+  auf dem Entwicklungsrechner und in der CI. Torch kommt als CPU-Fassung.
+- **Ordner wie im Repo:** `config.py` findet die Wurzel über den eigenen Pfad, die Oberfläche
+  liegt unter `/app/frontend/dist`. Deshalb bildet das Image die Ordnerstruktur des Repos nach.
+- **Kein root:** Die App läuft als eigener Benutzer (UID 1000, meist dieselbe wie der erste
+  Benutzer unter Linux, damit beide auf `data/` schreiben dürfen).
+- **Modelle sind Daten, kein Code:** BGE-M3 (über `HF_HOME`) und die Sprachmodelle von Ollama
+  liegen in benannten Volumes, nicht im Image. Das Image bleibt kleiner, und die Modelle überleben
+  jeden Neubau. Reproduzierbar bleibt es, weil die Revision von BGE-M3 im Code festgelegt ist.
+- **`data/` vom Rechner eingebunden:** Index und hochgeladenes Material liegen außerhalb des
+  Containers. Ein Neubau des Images löscht kein Material der Lehrenden.
+- **GPU nur für Ollama:** Das Embedding läuft auf der CPU, die 8 GB der Grafikkarte bleiben dem
+  Sprachmodell. `OLLAMA_KEEP_ALIVE=30m` hält es nach der letzten Frage 30 Minuten im Speicher.
+- **Ports nur auf `127.0.0.1`:** App und Ollama sind nur vom eigenen Rechner aus erreichbar. Im
+  Betrieb stünde davor ein Reverse Proxy mit HTTPS und Anmeldung.
+- **Healthcheck:** Docker fragt `/health` ab und zeigt den Zustand in `docker ps`.
+
+Die CI (GitHub Actions) prüft bei jedem Push Tests, Ruff und den Build der Oberfläche. Das
+Docker-Image baut sie nicht, weil der Download von Torch den Lauf stark verlängern würde.
 
 ## Bekannte Grenzen
 
@@ -520,8 +572,10 @@ zur Antwort, ohne Modell und ohne Ollama.
 - Typische Schwächen des 8B-Modells, die die Bewertung zeigte und die bewusst nicht weiter
   bearbeitet wurden: eigene Beispiele werden als „aus der Quelle“ ausgegeben; Code aus dem Buch
   wird umbenannt oder mit Kommentaren versehen, obwohl Regel 4 das verbietet; Plaudern („Gute
-  Frage!“); „Frag gerne nach!“, obwohl die API keinen Gesprächsverlauf kennt. Einmal stand ein
-  erfundener Halbsatz in einem wörtlichen Zitat.
+  Frage!“); „Frag gerne nach!“, obwohl die API keinen Gesprächsverlauf kennt (seit den Regeln
+  vom 13.11. seltener). Einmal stand ein erfundener Halbsatz in einem wörtlichen Zitat.
+- Eigene Beispiele soll das Modell mit „Eigenes Beispiel:“ kennzeichnen. Es tut das nicht
+  zuverlässig; im Lauf vom 13.11. fehlte die Kennzeichnung bei einem erfundenen Beispiel.
 - Bei einem Hinweiskasten des Buchs ging die Überschrift verloren („: Dies ist ein
   Paradebeispiel dafür, wie Unterabfragen nicht benutzt werden sollen.“). Das Modell nutzte genau
   dieses abschreckende Beispiel, um ORDER BY zu erklären.
