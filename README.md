@@ -2,6 +2,8 @@
 
 # Query Angler
 
+[![CI](https://github.com/vraskatov/query-angler/actions/workflows/ci.yml/badge.svg)](https://github.com/vraskatov/query-angler/actions/workflows/ci.yml)
+
 **Zieht Wissen an Land.**
 
 Ein quelloffener KI-Tutor für SQL, der Fragen ausschließlich auf Grundlage einer offenen
