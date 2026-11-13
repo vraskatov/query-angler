@@ -14,7 +14,7 @@ Designentscheidungen und ihre Begründung: [docs/ARCHITEKTUR.md](docs/ARCHITEKTU
 ## Stand
 
 - [x] Ingest: Kapitel über die MediaWiki-API laden, Revisionen festhalten, HTML bereinigen
-- [x] Chunking: an der Gliederung des Buchs, Übungen und Lösungen getrennt, Negativbeispiele markiert
+- [x] Chunking: an der Gliederung des Buchs, Übungen und Lösungen getrennt, rot und grün markierte Kästen mit der Einstufung des Buchs
 - [x] Embeddings (BGE-M3, lokal auf der CPU) und Vektorindex (Chroma)
 - [x] Retrieval mit Filter für Musterlösungen
 - [x] Generierung: API mit FastAPI, lokales Sprachmodell über Ollama, Antwort mit Quellen
@@ -86,7 +86,9 @@ curl -s localhost:8000/health
 | `k` | Anzahl der Auszüge aus dem Buch, 1 bis 10 (Standard 5) |
 
 Die Antwort enthält den Text, die Quellen mit Link und Ähnlichkeitswert (`cited`: in der Antwort
-genannt), die Laufzeiten und die Zahl der Prompt-Token.
+genannt), die Laufzeiten und die Zahl der Prompt-Token. Der Tutor prüft die Antwort des Modells,
+bevor er sie ausliefert: Nach einer Absage wird nichts angehängt, und ein sokratischer Hinweis, der
+die Lösung verrät, bekommt einen zweiten Versuch (`attempts`, `checks` in der Antwort).
 
 Einstellungen über Umgebungsvariablen, unter anderem `QUERYANGLER_LLM_BASE_URL`
 (Standard `http://localhost:11434/v1`), `QUERYANGLER_LLM_MODEL` (Standard `query-angler`) und

@@ -1,11 +1,18 @@
 """Prüfungen für die Evals. Reine Funktionen, deshalb einzeln testbar."""
 
-import re
 import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from queryangler.prompt import NO_KNOWLEDGE, Mode
+from queryangler.guard import (  # noqa: F401  (für die Evals hier mit angeboten)
+    follows_socratic_form,
+    has_addition_after_refusal,
+    has_code_block,
+    is_refusal,
+    leaked_keywords,
+    meta_references,
+)
+from queryangler.prompt import Mode
 
 GROUPS = ("im_buch", "nah_dran", "fremd", "sokratisch")
 
@@ -65,10 +72,6 @@ def mean_reciprocal_rank(ranks: list[int | None]) -> float:
 # --- Antworten ---------------------------------------------------------------
 
 
-def is_refusal(answer: str) -> bool:
-    return answer.strip().strip('"„“') == NO_KNOWLEDGE
-
-
 def missing_keywords(answer: str, all_of: list[str], any_of: list[str]) -> list[str]:
     """Fehlende Pflichtbegriffe (Groß- und Kleinschreibung egal). Leer = alles da."""
     text = answer.upper()
@@ -76,49 +79,3 @@ def missing_keywords(answer: str, all_of: list[str], any_of: list[str]) -> list[
     if any_of and not any(k.upper() in text for k in any_of):
         missing.append(" | ".join(any_of))
     return missing
-
-
-# Begriffe, die im sokratischen Modus die Lösung verraten. Nur in Großbuchstaben gesucht:
-# So schreibt man SQL, und deutsche Wörter wie "in" oder "min" lösen keinen Fehlalarm aus.
-SQL_KEYWORDS = (
-    "SELECT", "FROM", "WHERE", "GROUP BY", "HAVING", "ORDER BY", "COUNT", "SUM", "AVG",
-    "MIN", "MAX", "JOIN", "INNER", "OUTER", "LEFT", "RIGHT", "LIKE", "IS NULL", "UPDATE",
-    "SET", "INSERT", "DELETE", "DISTINCT", "EXISTS", "IN", "UNION", "CASE", "DESC", "ASC",
-    "BETWEEN", "LIMIT",
-)  # fmt: skip
-
-
-def _keywords_in(text: str) -> set[str]:
-    return {k for k in SQL_KEYWORDS if re.search(rf"(?<![A-Za-z_]){k}(?![A-Za-z_])", text)}
-
-
-def leaked_keywords(answer: str, question: str) -> list[str]:
-    """SQL-Begriffe in der Antwort, die nicht schon in der Frage stehen."""
-    return sorted(_keywords_in(answer) - _keywords_in(question))
-
-
-def has_code_block(answer: str) -> bool:
-    return "```" in answer
-
-
-# Verweise auf Material, das die Lernenden nicht sehen.
-_META = re.compile(
-    r"\b(Quellen?|Auszüge|Auszügen|Auszug|in den Beispielen|im Beispiel oben)\b|\[\d+",
-    re.IGNORECASE,
-)
-
-
-def meta_references(answer: str) -> list[str]:
-    return sorted({m.group(0) for m in _META.finditer(answer)})
-
-
-def follows_socratic_form(answer: str) -> bool:
-    """Genau ein "Hinweis:" am Anfang, genau ein "Frage:" danach, Schluss mit Fragezeichen."""
-    text = answer.strip()
-    return (
-        text.startswith("Hinweis:")
-        and text.count("Hinweis:") == 1
-        and text.count("Frage:") == 1
-        and text.index("Frage:") > text.index("Hinweis:")
-        and text.endswith("?")
-    )

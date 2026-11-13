@@ -445,9 +445,13 @@ def _is_boilerplate(text: str) -> bool:
 
 # -- Ausgabe zur Kontrolle ----------------------------------------------------
 
+# Bewusst neutral: Die Einstufung steht im Titel des Kastens und stammt vom Buch selbst.
+# Rot heißt dort nicht immer "falsch": "Fehler", aber auch "Möglich, aber nicht günstig"
+# oder "Oracle-Version". Ein eigenes Etikett "fehlerhaft oder nicht empfohlen" hatte das
+# Modell dazu gebracht, zulässigen, nur ungünstigen Code "fehlerhaft" zu nennen.
 VERDICT_LABEL = {
-    "negativ": "Negativbeispiel (fehlerhaft oder nicht empfohlen)",
-    "positiv": "Empfohlene Variante",
+    "negativ": "Rot markiert im Buch",
+    "positiv": "Grün markiert im Buch",
 }
 
 

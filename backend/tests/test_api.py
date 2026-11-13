@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 from queryangler.api.app import create_app
 from queryangler.index.store import IndexUnavailableError, build_index, open_index
 from queryangler.llm import LLMError, LLMTimeoutError, LLMUnavailableError
+from queryangler.prompt import NO_KNOWLEDGE
 from queryangler.retrieval import Retriever
 from queryangler.tutor import Tutor, cited_numbers
 
@@ -138,3 +139,62 @@ def test_server_starts_without_index_and_reports_why():
 )
 def test_cited_numbers(text, expected):
     assert cited_numbers(text) == expected
+
+
+# --- Prüfung der Ausgabe im Tutor ------------------------------------------------
+
+
+def make_tutor(tmp_path, llm):
+    embedder = FakeEmbedder()
+    build_index(CHUNKS, embedder, tmp_path)
+    return Tutor(Retriever(open_index(tmp_path, embedder.name), embedder), llm, context_tokens=8192)
+
+
+def ask(tutor, question, mode):
+    import asyncio
+
+    return asyncio.run(tutor.ask(question, mode=mode))
+
+
+def test_refusal_is_cut_after_the_sentence(tmp_path):
+    llm = FakeLLM(text=f"{NO_KNOWLEDGE}\n\nIsolationsstufen sind Read Committed, …")
+    answer = ask(make_tutor(tmp_path, llm), "Welche Isolationsstufen gibt es?", "erklaeren")
+    assert answer.text == NO_KNOWLEDGE
+    assert answer.checks == ["Absage: Zusatz nach dem Absagesatz entfernt"]
+    assert not any(s.cited for s in answer.sources)
+
+
+GOOD = "Hinweis: Überleg, wonach du zusammenfassen willst.\nFrage: Was ist bei dir eine Gruppe?"
+LEAKY = "Hinweis: Nutze COUNT mit GROUP BY.\nFrage: Was zählst du?"
+
+
+def test_socratic_clean_answer_needs_no_second_attempt(tmp_path):
+    llm = FakeLLM(text=GOOD)
+    answer = ask(make_tutor(tmp_path, llm), "Wie zähle ich Abteilungen pro Ort?", "sokratisch")
+    assert (answer.text, answer.attempts, answer.checks) == (GOOD, 1, [])
+    assert len(llm.calls) == 1
+
+
+def test_socratic_leak_gets_a_second_attempt_with_reason(tmp_path):
+    llm = FakeLLM(texts=[LEAKY, GOOD])
+    answer = ask(make_tutor(tmp_path, llm), "Wie zähle ich Abteilungen pro Ort?", "sokratisch")
+    assert answer.text == GOOD
+    assert answer.attempts == 2
+    assert "COUNT, GROUP BY" in answer.checks[0]
+    retry = llm.calls[1]
+    assert retry[-2] == {"role": "assistant", "content": LEAKY}
+    assert "COUNT, GROUP BY" in retry[-1]["content"]
+
+
+def test_socratic_keeps_the_better_answer_and_flags_it(tmp_path):
+    worse = "Hier die Lösung: ```SELECT Ort, COUNT(*) FROM Abteilung GROUP BY Ort``` [1]"
+    llm = FakeLLM(texts=[LEAKY, worse])
+    answer = ask(make_tutor(tmp_path, llm), "Wie zähle ich Abteilungen pro Ort?", "sokratisch")
+    assert answer.text == LEAKY
+    assert "schlechter" in answer.checks[-1]
+
+
+def test_explain_mode_is_not_checked_for_sql(tmp_path):
+    llm = FakeLLM(text="Mit COUNT und GROUP BY [1].")
+    answer = ask(make_tutor(tmp_path, llm), "Wie zähle ich Abteilungen pro Ort?", "erklaeren")
+    assert answer.attempts == 1 and answer.checks == []

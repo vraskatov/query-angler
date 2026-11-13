@@ -24,6 +24,7 @@ from queryangler.evals.checks import (
     Question,
     follows_socratic_form,
     gold_rank,
+    has_addition_after_refusal,
     has_code_block,
     hit_rate,
     is_refusal,
@@ -226,6 +227,8 @@ def _answer_row(q: Question, answer: Any, label: str) -> dict[str, Any]:
         "llm_seconds": round(answer.timings.get("llm", 0.0), 2),
         "prompt_tokens": answer.prompt_tokens,
         "refusal": is_refusal(text),
+        "attempts": answer.attempts,
+        "checks": answer.checks,
     }
     if q.group == "im_buch":
         row["cited_any"] = any(s.cited for s in answer.sources)
@@ -317,8 +320,28 @@ def cmd_report(args: argparse.Namespace) -> None:
     print(f"-> {out}")
 
 
+def _derived(r: dict[str, Any]) -> dict[str, Any]:
+    """Prüfungen aus dem Antworttext neu berechnen.
+
+    So gelten für alte und neue Läufe dieselben Regeln, auch wenn sich eine Prüfung
+    geändert hat (z. B. Absage = beginnt mit dem Absagesatz).
+    """
+    text, question = r["answer"], r["question"]
+    checks = r.get("checks") or []
+    return {
+        "refusal": is_refusal(text),
+        "addition": has_addition_after_refusal(text) or any("Absage: Zusatz" in c for c in checks),
+        "form_ok": follows_socratic_form(text),
+        "leak": bool(leaked_keywords(text, question)) or has_code_block(text),
+        "leaked": leaked_keywords(text, question) + (["Codeblock"] if has_code_block(text) else []),
+        "meta": meta_references(text),
+        "retry": r.get("attempts", 1) > 1,
+    }
+
+
 def _answers_report(runs: dict[str, list[dict[str, Any]]]) -> str:
     names = list(runs)
+    derived = {name: [{**r, **_derived(r)} for r in rows] for name, rows in runs.items()}
     lines = [
         "# Antworten",
         "",
@@ -327,10 +350,10 @@ def _answers_report(runs: dict[str, list[dict[str, Any]]]) -> str:
     ]
 
     def row(label: str, fn: Any) -> None:
-        lines.append(f"| {label} | " + " | ".join(fn(runs[n]) for n in names) + " |")
+        lines.append(f"| {label} | " + " | ".join(fn(derived[n]) for n in names) + " |")
 
-    def group(rows: list[dict[str, Any]], g: str) -> list[dict[str, Any]]:
-        return [r for r in rows if r["group"] == g]
+    def group(rows: list[dict[str, Any]], *groups: str) -> list[dict[str, Any]]:
+        return [r for r in rows if r["group"] in groups]
 
     def share(rows: list[dict[str, Any]], pred: Any) -> str:
         return f"{sum(1 for r in rows if pred(r))}/{len(rows)}" if rows else "–"
@@ -338,6 +361,9 @@ def _answers_report(runs: dict[str, list[dict[str, Any]]]) -> str:
     def rated(rows: list[dict[str, Any]], key: str) -> str:
         scores = [r["rating"][key] for r in group(rows, "im_buch") if r.get("rating")]
         return f"{mean(scores):.2f} (n={len(scores)})" if scores else "–"
+
+    def seconds(rows: list[dict[str, Any]]) -> str:
+        return f"{median(r['llm_seconds'] for r in rows):.1f}" if rows else "–"
 
     row("Modell", lambda rs: rs[0]["model"] or "–")
     row("**Im Buch**", lambda rs: "")
@@ -352,35 +378,37 @@ def _answers_report(runs: dict[str, list[dict[str, Any]]]) -> str:
     row("**Absage, wo nötig**", lambda rs: "")
     row("Nah dran, nicht im Buch", lambda rs: share(group(rs, "nah_dran"), lambda r: r["refusal"]))
     row("Themenfremd", lambda rs: share(group(rs, "fremd"), lambda r: r["refusal"]))
-    row("**Sokratisch**", lambda rs: "")
+    row(
+        "Modell hängte etwas an die Absage",
+        lambda rs: share(group(rs, "nah_dran", "fremd"), lambda r: r["addition"]),
+    )
+    row("**Sokratisch** (ausgelieferte Antwort)", lambda rs: "")
     row("Form eingehalten", lambda rs: share(group(rs, "sokratisch"), lambda r: r["form_ok"]))
     row(
         "Ohne SQL-Begriffe (Leck)",
-        lambda rs: share(
-            group(rs, "sokratisch"), lambda r: not r["leaked"] and not r["code_block"]
-        ),
+        lambda rs: share(group(rs, "sokratisch"), lambda r: not r["leak"]),
     )
     row(
         "Ohne Verweis auf Quellen",
         lambda rs: share(group(rs, "sokratisch"), lambda r: not r["meta"]),
     )
-    row("**Laufzeit**", lambda rs: "")
-    row("Median Sekunden (LLM)", lambda rs: f"{median(r['llm_seconds'] for r in rs):.1f}")
+    row("Zweiter Versuch nötig", lambda rs: share(group(rs, "sokratisch"), lambda r: r["retry"]))
+    row("**Laufzeit** (Median Sekunden LLM)", lambda rs: "")
+    row("Erklären", lambda rs: seconds(group(rs, "im_buch")))
+    row("Sokratisch", lambda rs: seconds(group(rs, "sokratisch")))
+    row("Absagen", lambda rs: seconds(group(rs, "nah_dran", "fremd")))
 
     lines += ["", "## Auffällige Antworten", ""]
     for name in names:
-        for r in runs[name]:
+        for r in derived[name]:
             problems = []
             if r["group"] in ("nah_dran", "fremd") and not r["refusal"]:
                 problems.append("keine Absage")
             if r["group"] == "im_buch" and r["refusal"]:
                 problems.append("fälschlich abgesagt")
             if r["group"] == "sokratisch":
-                if r["leaked"] or r["code_block"]:
-                    problems.append(
-                        "Leck: "
-                        + ", ".join(r["leaked"] + (["Codeblock"] if r["code_block"] else []))
-                    )
+                if r["leak"]:
+                    problems.append("Leck: " + ", ".join(r["leaked"]))
                 if r["meta"]:
                     problems.append("Verweis: " + ", ".join(r["meta"]))
                 if not r["form_ok"]:

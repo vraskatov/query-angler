@@ -31,24 +31,42 @@ class FakeEmbedder:
 
 
 class FakeLLM:
-    """Antwortet mit festem Text oder wirft einen vorgegebenen Fehler.
+    """Antwortet mit festem Text (oder nacheinander mit mehreren) oder wirft einen Fehler.
 
-    Merkt sich die zuletzt erhaltenen Nachrichten, damit Tests den Prompt prüfen können.
+    Merkt sich alle erhaltenen Nachrichten, damit Tests den Prompt prüfen können.
     """
 
     model = "fake-llm"
 
-    def __init__(self, text: str = "Antwort [1].", error: Exception | None = None) -> None:
-        self.text = text
+    def __init__(
+        self,
+        text: str = "Antwort [1].",
+        error: Exception | None = None,
+        texts: list[str] | None = None,
+    ) -> None:
+        self.texts = texts or [text]
         self.error = error
         self.reachable = True
-        self.last_messages: list[Message] | None = None
+        self.calls: list[list[Message]] = []
+
+    @property
+    def text(self) -> str:
+        return self.texts[0]
+
+    @text.setter
+    def text(self, value: str) -> None:
+        self.texts = [value]
+
+    @property
+    def last_messages(self) -> list[Message] | None:
+        return self.calls[-1] if self.calls else None
 
     async def complete(self, messages: list[Message]) -> LLMResult:
-        self.last_messages = messages
+        self.calls.append(messages)
         if self.error:
             raise self.error
-        return LLMResult(text=self.text, model=self.model, seconds=0.01, prompt_tokens=123)
+        text = self.texts[min(len(self.calls), len(self.texts)) - 1]
+        return LLMResult(text=text, model=self.model, seconds=0.01, prompt_tokens=123)
 
     async def is_reachable(self) -> bool:
         return self.reachable

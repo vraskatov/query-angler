@@ -109,7 +109,8 @@ def test_zu_grosser_einzelblock_wird_nicht_zerschnitten():
 def test_negativbeispiel_markiert_und_in_metadaten():
     blocks = [h(2, "JOIN"), code("SELECT …", title="So nicht", verdict="negativ")]
     [chunk] = chunk_page(page(blocks))
-    assert "Negativbeispiel (fehlerhaft oder nicht empfohlen):** So nicht" in chunk["text"]
+    # neutrales Etikett, die Einstufung kommt vom Buch (Titel des Kastens)
+    assert "**Rot markiert im Buch:** So nicht" in chunk["text"]
     assert chunk["metadata"]["has_negative_example"] is True
 
 

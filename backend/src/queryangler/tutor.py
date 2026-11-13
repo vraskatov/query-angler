@@ -1,11 +1,12 @@
-"""Der Tutor: suchen, Prompt bauen, Sprachmodell fragen, Antwort mit Quellen liefern."""
+"""Der Tutor: suchen, Prompt bauen, Sprachmodell fragen, Antwort prüfen, mit Quellen liefern."""
 
 import asyncio
 import re
 import time
 from dataclasses import dataclass, field
 
-from queryangler.llm import LLMClient
+from queryangler.guard import is_refusal, socratic_problems, socratic_retry_message
+from queryangler.llm import LLMClient, LLMResult, Message
 from queryangler.prompt import NO_KNOWLEDGE, Mode, build_prompt
 from queryangler.retrieval import Retriever
 
@@ -34,6 +35,8 @@ class Answer:
     prompt_tokens_estimated: int = 0
     prompt_tokens: int | None = None  # wie das Modell sie gezählt hat
     excerpts_dropped: int = 0
+    attempts: int = 1  # Anfragen an das Sprachmodell (2 = zweiter Versuch nötig)
+    checks: list[str] = field(default_factory=list)  # was die Prüfung der Ausgabe getan hat
 
 
 class Tutor:
@@ -68,7 +71,19 @@ class Tutor:
 
         prompt = build_prompt(question, hits, mode, self.context_tokens)
         result = await self.llm.complete(prompt.messages)
-        cited = cited_numbers(result.text)
+        llm_seconds = result.seconds
+        text, attempts, checks = result.text, 1, []
+
+        if is_refusal(text):
+            if text.strip() != NO_KNOWLEDGE:
+                checks.append("Absage: Zusatz nach dem Absagesatz entfernt")
+            text = NO_KNOWLEDGE
+        elif mode == "sokratisch":
+            text, retry, checks = await self._check_socratic(question, prompt.messages, result)
+            if retry:
+                attempts, llm_seconds = 2, llm_seconds + retry.seconds
+
+        cited = cited_numbers(text)
         sources = [
             Source(
                 number=n,
@@ -85,15 +100,48 @@ class Tutor:
             for n, hit in enumerate(prompt.hits, start=1)
         ]
         return Answer(
-            text=result.text,
+            text=text,
             mode=mode,
             sources=sources,
             model=result.model,
-            timings={"retrieval": retrieval_seconds, "llm": result.seconds},
+            timings={"retrieval": retrieval_seconds, "llm": llm_seconds},
             prompt_tokens_estimated=prompt.estimated_tokens,
             prompt_tokens=result.prompt_tokens,
             excerpts_dropped=prompt.dropped,
+            attempts=attempts,
+            checks=checks,
         )
+
+    async def _check_socratic(
+        self, question: str, messages: list[Message], first: LLMResult
+    ) -> tuple[str, LLMResult | None, list[str]]:
+        """Verrät die Antwort zu viel, bekommt das Modell genau einen zweiten Versuch.
+
+        Ausgeliefert wird die Antwort mit weniger Problemen. Bleiben welche, steht das in
+        den Prüfhinweisen, damit es sichtbar ist (in der API-Antwort und in den Evals).
+        """
+        problems = socratic_problems(first.text, question)
+        if not problems:
+            return first.text, None, []
+        retry_messages = [
+            *messages,
+            {"role": "assistant", "content": first.text},
+            {"role": "user", "content": socratic_retry_message(problems)},
+        ]
+        second = await self.llm.complete(retry_messages)
+        if is_refusal(second.text):  # zweiter Versuch darf nicht plötzlich absagen
+            return (
+                first.text,
+                second,
+                [f"Zweiter Versuch sagte ab; erste Antwort: {'; '.join(problems)}"],
+            )
+        second_problems = socratic_problems(second.text, question)
+        checks = [f"Zweiter Versuch, weil {'; '.join(problems)}"]
+        if not second_problems:
+            return second.text, second, checks
+        if len(second_problems) <= len(problems):
+            return second.text, second, [*checks, f"Weiterhin: {'; '.join(second_problems)}"]
+        return first.text, second, [*checks, "Zweiter Versuch schlechter, erste Antwort geliefert"]
 
 
 def cited_numbers(text: str) -> set[int]:
