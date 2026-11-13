@@ -21,10 +21,12 @@ from queryangler.config import (
     INDEX_DIR,
     RERANK_MODEL,
     RERANK_REVISION,
+    UPLOAD_DIR,
 )
 from queryangler.index.embedder import ModelUnavailableError, SentenceTransformerEmbedder
 from queryangler.index.store import IndexUnavailableError, build_index
 from queryangler.ingest.util import read_jsonl
+from queryangler.sources import SourceManager
 
 
 def cmd_build(args: argparse.Namespace) -> None:
@@ -40,6 +42,11 @@ def cmd_build(args: argparse.Namespace) -> None:
     collection = build_index(chunks, embedder, INDEX_DIR)
     seconds = time.perf_counter() - start
     print(f"\n{collection.count()} Chunks in {seconds:.0f} s indiziert -> {INDEX_DIR}")
+
+    # Hochgeladenes Material der Lehrenden geht beim Neubau sonst verloren
+    uploads = SourceManager(collection, embedder, UPLOAD_DIR).reindex_all()
+    if uploads:
+        print(f"{uploads} Chunks aus hochgeladenem Material wieder aufgenommen")
 
 
 def cmd_models(args: argparse.Namespace) -> None:

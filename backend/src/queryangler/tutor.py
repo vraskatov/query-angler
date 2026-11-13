@@ -5,6 +5,7 @@ import re
 import time
 from dataclasses import dataclass, field
 
+from queryangler.config import BOOK_LICENSE
 from queryangler.guard import is_refusal, socratic_problems, socratic_retry_message
 from queryangler.llm import LLMClient, LLMResult, Message
 from queryangler.prompt import NO_KNOWLEDGE, Mode, build_prompt
@@ -20,6 +21,7 @@ class Source:
     url: str
     permalink: str
     role: str
+    license: str  # Lizenz der Quelle: das Buch oder hochgeladenes Material
     score: float  # Kosinus-Ähnlichkeit der Vektorsuche
     rerank_score: float | None  # Bewertung des Rerankers, falls verwendet
     cited: bool  # in der Antwort tatsächlich genannt?
@@ -93,6 +95,7 @@ class Tutor:
                 url=hit.metadata.get("url", ""),
                 permalink=hit.metadata.get("permalink", ""),
                 role=hit.metadata.get("role", ""),
+                license=hit.metadata.get("license", BOOK_LICENSE),
                 score=round(hit.score, 4),
                 rerank_score=None if hit.rerank_score is None else round(hit.rerank_score, 4),
                 cited=n in cited,

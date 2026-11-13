@@ -1,3 +1,5 @@
+<img src="frontend/public/logo.png" width="96" alt="Logo von Query Angler: Angelhaken unter einer Wasserlinie">
+
 # Query Angler
 
 **Zieht Wissen an Land.**
@@ -18,7 +20,7 @@ Designentscheidungen und ihre Begründung: [docs/ARCHITEKTUR.md](docs/ARCHITEKTU
 - [x] Embeddings (BGE-M3, lokal auf der CPU) und Vektorindex (Chroma)
 - [x] Retrieval mit Filter für Musterlösungen
 - [x] Generierung: API mit FastAPI, lokales Sprachmodell über Ollama, Antwort mit Quellen
-- [ ] Self-Service-Oberfläche für Lehrende
+- [x] Oberfläche: Fragen mit Schalter Erklären/Sokratisch, Wissensbasis mit Upload für Lehrende
 - [x] Evals: Retrieval (Trefferquote, MRR) und Antworten (Absagen, sokratischer Modus, eigene Bewertung)
 - [ ] Docker Compose, CI
 
@@ -96,6 +98,31 @@ Einstellungen über Umgebungsvariablen, unter anderem `QUERYANGLER_LLM_BASE_URL`
 OpenAI-kompatibler Schnittstelle funktioniert, ein Schlüssel kommt bei Bedarf in
 `QUERYANGLER_LLM_API_KEY`.
 
+## Oberfläche
+
+Die Oberfläche (Vue 3, `frontend/`) hat zwei Reiter:
+
+- **Fragen:** Frage stellen, Schalter **Erklären | Sokratisch**, Antwort mit Formatierung und
+  Quellen. Im sokratischen Modus heißen die Quellen „Zum Nachlesen“.
+- **Wissensbasis** für Lehrende: was der Tutor weiß (Buch, Umfang, Modelle, ob Ollama läuft) und
+  **eigenes Material hochladen**, als Markdown (.md) oder Text (.txt), mit Titel und Lizenz. Der
+  Tutor nutzt es sofort als Quelle. Hochgeladenes lässt sich wieder entfernen und überlebt einen
+  Neubau des Index.
+
+Einmal bauen, dann liefert FastAPI die Oberfläche unter <http://localhost:8000/> mit aus:
+
+```bash
+cd frontend
+npm install
+npm run build        # schreibt nach frontend/dist/
+```
+
+Zum Entwickeln an der Oberfläche: `npm run dev` startet sie auf <http://localhost:5173> mit
+automatischem Neuladen und leitet die API-Aufrufe an das Backend auf Port 8000 weiter.
+
+Anmeldung und Rollen gibt es bewusst nicht. Im Betrieb käme die Rolle (Lernende oder Lehrende)
+aus Moodle über LTI 1.3.
+
 ## Evals
 
 Testfragen in [`evals/questions.toml`](evals/questions.toml), in vier Gruppen: im Buch, nah am
@@ -106,9 +133,20 @@ cd backend
 uv run python -m queryangler.evals retrieval                   # ohne Sprachmodell, Sekunden
 uv run python -m queryangler.evals answers --label ministral   # mit Ollama, einige Minuten
 QUERYANGLER_LLM_MODEL=query-angler-qwen3 uv run python -m queryangler.evals answers --label qwen3
-uv run python -m queryangler.evals rate                        # Antworten selbst bewerten (0–2)
+uv run python -m queryangler.evals rate                        # neuesten Lauf bewerten (0–2)
 uv run python -m queryangler.evals report                      # Vergleich aller Läufe
 ```
+
+Ergebnis mit Ministral 3 8B (Einzelheiten und Bewertungsskala in
+[docs/ARCHITEKTUR.md](docs/ARCHITEKTUR.md#evals)):
+
+| | |
+|---|---|
+| Trefferquote@5 im Retrieval | 61 % |
+| Richtigkeit der Antworten | 1,78 von 2 |
+| Treue zur Quelle | 1,28 von 2 |
+| Absage bei Fragen ohne Grundlage im Buch | 12 von 12 |
+| Sokratischer Modus ohne verratene SQL-Begriffe | 10 von 10 |
 
 ## Entwicklung
 
@@ -117,3 +155,7 @@ cd backend
 uv run pytest
 uv run ruff check . && uv run ruff format --check .
 ```
+
+## Herkunft
+
+Das Logo wurde mit ChatGPT nach Vorgaben des Autors erzeugt.

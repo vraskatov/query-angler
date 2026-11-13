@@ -2,17 +2,21 @@
 
 Start (im Ordner backend):  uv run uvicorn queryangler.api.app:app --reload
 Interaktive Dokumentation:  http://localhost:8000/docs
+Oberfläche:                 http://localhost:8000/  (wenn frontend/dist gebaut ist)
 
 Modell und Index werden einmal beim Start geladen, nicht pro Anfrage. Fehlt etwas
 (kein Index, Modell nicht heruntergeladen), startet der Server trotzdem: /health
 nennt dann den Grund, /ask antwortet mit 503.
 """
 
+import asyncio
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, Response, UploadFile
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from queryangler import config
@@ -21,6 +25,7 @@ from queryangler.index.embedder import ModelUnavailableError
 from queryangler.index.store import IndexUnavailableError
 from queryangler.llm import LLMError, LLMTimeoutError, LLMUnavailableError, OpenAICompatibleClient
 from queryangler.prompt import Mode
+from queryangler.sources import MAX_BYTES, Source, SourceError, SourceManager
 from queryangler.tutor import Answer, Tutor
 
 
@@ -55,15 +60,35 @@ class Health(BaseModel):
     detail: str | None = None
 
 
-def create_app(build_tutor: Callable[[], Tutor] = build_default_tutor) -> FastAPI:
+class Info(BaseModel):
+    book_title: str
+    book_author: str
+    book_license: str
+    book_chapters: int
+    book_chunks: int
+    uploads: int
+    upload_chunks: int
+    embedding_model: str
+    llm_model: str
+    llm_reachable: bool
+
+
+def create_app(
+    build_tutor: Callable[[], Tutor] = build_default_tutor,
+    upload_dir: Path = config.UPLOAD_DIR,
+    frontend_dir: Path = config.FRONTEND_DIST,
+) -> FastAPI:
     """build_tutor ist austauschbar: Die Tests übergeben einen Tutor mit Ersatzteilen."""
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.tutor = None
         app.state.startup_error = None
+        app.state.sources = None
         try:
             app.state.tutor = build_tutor()
+            retriever = app.state.tutor.retriever
+            app.state.sources = SourceManager(retriever.collection, retriever.embedder, upload_dir)
         except (IndexUnavailableError, ModelUnavailableError) as error:
             app.state.startup_error = str(error)
         yield
@@ -108,6 +133,72 @@ def create_app(build_tutor: Callable[[], Tutor] = build_default_tutor) -> FastAP
             llm_model=tutor.llm.model if tutor else None,
             detail=request.app.state.startup_error,
         )
+
+    # --- Wissensbasis: Übersicht und eigenes Material der Lehrenden ----------------
+
+    def get_sources(request: Request) -> SourceManager:
+        if request.app.state.sources is None:
+            raise HTTPException(503, request.app.state.startup_error or "Tutor nicht bereit.")
+        return request.app.state.sources
+
+    @app.get("/info", response_model=Info)
+    async def info(
+        tutor: Annotated[Tutor, Depends(get_tutor)],
+        sources: Annotated[SourceManager, Depends(get_sources)],
+    ) -> Info:
+        metas = tutor.retriever.collection.get(include=["metadatas"])["metadatas"]
+        book = [m for m in metas if m.get("source") != "upload"]
+        return Info(
+            book_title=config.BOOK_TITLE,
+            book_author=config.BOOK_AUTHOR,
+            book_license=config.BOOK_LICENSE,
+            book_chapters=len({m["chapter"] for m in book}),
+            book_chunks=len(book),
+            uploads=len(sources.entries()),
+            upload_chunks=len(metas) - len(book),
+            embedding_model=tutor.retriever.embedder.name,
+            llm_model=tutor.llm.model,
+            llm_reachable=await tutor.llm.is_reachable(),
+        )
+
+    @app.get("/sources", response_model=list[Source])
+    async def list_sources(sources: Annotated[SourceManager, Depends(get_sources)]) -> list[Source]:
+        return sources.entries()
+
+    @app.post("/sources", response_model=Source, status_code=201)
+    async def add_source(
+        tutor: Annotated[Tutor, Depends(get_tutor)],
+        sources: Annotated[SourceManager, Depends(get_sources)],
+        file: Annotated[UploadFile, File(description="Markdown (.md) oder Text (.txt), UTF-8")],
+        title: Annotated[str, Form(min_length=1, max_length=200)],
+        license: Annotated[str, Form(min_length=1, max_length=200)],
+    ) -> Source:
+        data = await file.read(MAX_BYTES + 1)  # ein Byte mehr: so fällt "zu groß" auf
+        try:
+            # Einbetten rechnet auf der CPU, deshalb in einem eigenen Thread
+            source = await asyncio.to_thread(sources.add, file.filename or "", data, title, license)
+        except SourceError as error:
+            raise HTTPException(400, str(error)) from error
+        tutor.retriever.refresh()
+        return source
+
+    @app.delete("/sources/{source_id}", status_code=204)
+    async def remove_source(
+        source_id: str,
+        tutor: Annotated[Tutor, Depends(get_tutor)],
+        sources: Annotated[SourceManager, Depends(get_sources)],
+    ) -> Response:
+        try:
+            sources.remove(source_id)
+        except KeyError as error:
+            raise HTTPException(404, "Diese Quelle gibt es nicht.") from error
+        tutor.retriever.refresh()
+        return Response(status_code=204)
+
+    # Die gebaute Oberfläche ausliefern. Als Letztes eingehängt, damit /ask, /docs usw.
+    # Vorrang haben. Ohne gebaute Oberfläche läuft die API trotzdem.
+    if frontend_dir.is_dir():
+        app.mount("/", StaticFiles(directory=frontend_dir, html=True), name="frontend")
 
     return app
 

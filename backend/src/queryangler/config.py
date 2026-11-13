@@ -12,6 +12,8 @@ RAW_DIR = DATA_DIR / "raw"
 CLEAN_DIR = DATA_DIR / "clean"
 CHUNKS_FILE = DATA_DIR / "chunks" / "chunks.jsonl"
 INDEX_DIR = DATA_DIR / "index"
+UPLOAD_DIR = DATA_DIR / "uploads"  # Material, das Lehrende hochladen, mit sources.json
+FRONTEND_DIST = REPO_ROOT / "frontend" / "dist"  # gebaute Oberfläche, falls vorhanden
 MANIFEST_FILE = RAW_DIR / "manifest.json"
 ATTRIBUTION_FILE = Path(
     os.environ.get("QUERYANGLER_ATTRIBUTION_FILE", REPO_ROOT / "ATTRIBUTION.md")
@@ -21,6 +23,7 @@ WIKI_BASE = "https://de.wikibooks.org"
 WIKI_API = f"{WIKI_BASE}/w/api.php"
 BOOK_TITLE = "Einführung in SQL"
 BOOK_PREFIX = f"{BOOK_TITLE}:"
+BOOK_LICENSE = "CC BY-SA 4.0"
 BOOK_AUTHOR = "Jürgen Thomas"  # laut Titelseite; weitere Autoren in den Versionsgeschichten
 
 # Embeddings und Index

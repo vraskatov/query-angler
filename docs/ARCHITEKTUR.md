@@ -16,7 +16,8 @@ Dieses Dokument beschreibt die umgesetzten Bausteine und wird mit jedem weiteren
 
 ## Projektstruktur
 
-- **`backend/` und später `frontend/`** in einem Repository, zusammengeführt über Docker Compose.
+- **`backend/` und `frontend/`** in einem Repository. Die gebaute Oberfläche liefert FastAPI mit
+  aus; dadurch braucht es nur einen Container für die Anwendung, dazu Ollama.
 - **`src`-Layout:** Der Code liegt unter `backend/src/queryangler/`. Python kann das Paket dadurch
   nur als installiertes Paket importieren, nicht versehentlich aus dem Arbeitsverzeichnis. Die
   Tests prüfen also dasselbe, was später im Container läuft.
@@ -338,6 +339,45 @@ mit denselben Funktionen, die auch die Evals verwenden:
 - **Dependency Injection:** `create_app(build_tutor)` nimmt die Funktion entgegen, die den Tutor
   baut. Die Tests übergeben einen Tutor mit Ersatzteilen.
 
+## Oberfläche und eigenes Material
+
+### Oberfläche
+
+- **Vue 3 mit Vite, schlichtes JavaScript,** ohne Router und ohne UI-Bibliothek. Zwei Ansichten,
+  umgeschaltet über Reiter; `KeepAlive` behält den Zustand beim Wechseln.
+- **Schalter Erklären | Sokratisch** mit beiden Wörtern sichtbar. Ein An-aus-Schalter wäre
+  missverständlich, weil man nicht sieht, was „aus“ bedeutet.
+- **Hell und dunkel:** Standard ist die Einstellung des Betriebssystems (`prefers-color-scheme`),
+  ein Knopf in der Kopfzeile überschreibt sie und merkt sich die Wahl im Browser. Ein kleines
+  Skript in `index.html` setzt sie vor dem ersten Zeichnen, damit die Seite nicht aufblitzt.
+  Farben: hell mit Pastellgelb und Anthrazit, dunkel umgekehrt, Akzente in beiden Orange.
+- **Antworten als Markdown** (`marked`), bereinigt mit `DOMPurify`. Das Sprachmodell erzeugt Text,
+  der als HTML in die Seite kommt; ohne Bereinigung könnte eine Antwort Skripte einschleusen.
+- **Ehrlich zu den Grenzen:** Unter dem Eingabefeld steht, dass jede Frage einzeln beantwortet
+  wird. Hat der Tutor abgesagt oder einen zweiten Versuch gebraucht, steht das unter der Antwort.
+- **Auslieferung durch FastAPI** (`StaticFiles`), eingehängt nach allen API-Routen, damit `/ask`
+  oder `/docs` Vorrang haben. Ein eigener Container mit nginx wäre in großen Projekten üblich, hier
+  aber ein Dienst mehr ohne Nutzen. Beim Entwickeln leitet Vite die API-Aufrufe weiter, so braucht
+  es kein CORS.
+
+### Eigenes Material (Self-Service für Lehrende)
+
+- **Formate:** Markdown und reiner Text, UTF-8, höchstens 1 MB. Markdown wird wie das Buch an den
+  Überschriften zerlegt (Überschriften in Codeblöcken zählen nicht), reiner Text an Leerzeilen;
+  zu lange Abschnitte an Leerzeilen geteilt, nie innerhalb eines Codeblocks. PDF und Word sind
+  bewusst nicht dabei: Text aus PDFs ist fehleranfällig (Spalten, Kopfzeilen, Silbentrennung).
+- **Pflichtangaben:** Titel und Lizenz. Der Tutor nennt das Material als Quelle mit genau diesen
+  Angaben, so wie das Buch mit CC BY-SA 4.0.
+- **Speicherung:** Die Chunks kommen in denselben Chroma-Index, mit `source="upload"` und einer
+  `source_id` in den Metadaten. Darüber lassen sie sich gezielt löschen. Originaldatei und Liste
+  der Quellen liegen in `data/uploads/` (nicht im Repo). `index build` nimmt sie nach dem Neubau
+  wieder auf, sonst ginge das Material verloren.
+- **API:** `GET /info`, `GET /sources`, `POST /sources` (Formular mit Datei, Titel, Lizenz),
+  `DELETE /sources/{id}`. Das Einbetten läuft in einem eigenen Thread, wie die Suche.
+- **Bewusst nicht:** Anmeldung und Rollen. Im Betrieb käme das über Moodle (LTI 1.3), ebenso
+  getrennte Wissensbasen je Kurs. Das hochgeladene Material landet bisher in derselben
+  Wissensbasis wie das Buch.
+
 ## Evals
 
 Tests prüfen, ob der Code tut, was er soll. Evals messen, wie gut das System antwortet. Das
@@ -370,12 +410,55 @@ die Fragen gültig, wenn sich das Chunking ändert.
 - Erste Fassung der Absage-Prüfung: Sie verlangte den Absagesatz allein und zählte deshalb 11 von
   12 richtigen Absagen als Fehler. Ein Fehler der Messung, nicht des Tutors; erst der Blick in die
   Antworten zeigte das.
-- Antworten, von Hand: Richtigkeit und Treue zur Quelle, je 0 bis 2, bewertet im Terminal mit den
-  Quelltexten daneben. Ein kleines Modell als Richter über ein gleich großes Modell wäre nicht
-  glaubwürdig; ein SQL-Dozent als Bewerter schon.
+- Antworten, bewertet: Richtigkeit und Treue zur Quelle, je 0 bis 2, im Terminal mit den
+  Quelltexten daneben (`evals rate`). Die Quelltexte speichert der Lauf mit, denn Chunk-Nummern
+  können sich beim Neubau des Index verschieben. Das ist einmal passiert: Eine Bewertung zeigte zu
+  einer alten Antwort plötzlich einen anderen Abschnitt.
 
-**Grenzen:** 40 Fragen ergeben Tendenzen, keine statistisch belastbaren Unterschiede. Die
-Leck-Prüfung erkennt SQL-Begriffe, aber keine verratenen Tabellen- oder Spaltennamen.
+**Bewertungsskala**
+
+| | Richtigkeit (fachlich, egal was im Buch steht) | Treue (steht es in den Quellen?) |
+|---|---|---|
+| 2 | richtig und beantwortet die Frage | Kernaussage steht in den Quellen, alle Verweise stimmen; eigene Beispiele sind als solche erkennbar |
+| 1 | im Kern richtig, aber mit Fehler, schiefer Verallgemeinerung oder wichtiger Lücke | Kernaussage gedeckt, aber Details oder Verweise nicht; oder Kernaussage aus eigenem Wissen, aber nicht als Buchinhalt ausgegeben |
+| 0 | falsch, irreführend oder an der Frage vorbei | Kernaussage aus eigenem Wissen und dem Buch zugeschrieben, oder Quelle verfälscht |
+
+Die beiden Werte sind unabhängig: „Richtig, aber nicht treu“ heißt, das Modell wusste es selbst,
+das Buch sagt es nicht. „Treu, aber nicht richtig“ hieße, das Buch ist an der Stelle ungenau.
+
+**Wer bewertet hat:** 11 der 18 Antworten bewertete der Autor (SQL-Dozent), im Gespräch mit Claude
+abgestimmt. Dabei entstand die Skala für die Treue. In den 8 Fällen, in denen der Autor zuerst
+bewertete, stimmte die Richtigkeit 7-mal mit Claudes Vorschlag überein, die Treue nur 3-mal: Der
+Autor hatte „ehrlich gekennzeichnetes eigenes Wissen“ zunächst als treu gewertet. Nach Festlegung
+der Skala wurde das einheitlich zu 1. Die übrigen 7 Antworten bewertete Claude nach derselben
+Skala. Ein 8B-Modell als Richter über ein 8B-Modell wäre nicht glaubwürdig, ein deutlich größeres
+Modell mit fester Skala und Stichproben durch einen Menschen ist eine übliche Methode
+(LLM-as-a-Judge). Der Bericht weist für jeden Wert aus, wie viele Bewertungen von wem stammen.
+
+**Ergebnis** (Ministral 3 8B, Vektorsuche, Prüfung der Ausgabe im Code, Lauf vom 12.11.2026):
+
+| Kennzahl | Wert |
+|---|---|
+| Richtigkeit, Fragen im Buch | 1,78 von 2 |
+| Treue zur Quelle | 1,28 von 2 |
+| … wenn der passende Abschnitt unter den Quellen war (13 Fragen) | 1,38 |
+| … wenn nicht (5 Fragen) | 1,00 |
+| Absage bei Fragen ohne Grundlage | 12 von 12 |
+| Sokratisch ohne SQL-Begriffe | 10 von 10 (vor der Prüfung im Code: 6 von 10) |
+| Sokratisch ohne Verweis auf Quellen | 3 von 10 (unverändert) |
+| Median Antwortzeit LLM: Erklären / Sokratisch / Absage | 13,1 / 7,8 / 5,4 s |
+
+Lesart:
+- Das Modell antwortet fachlich fast immer richtig, oft aber mit eigenem Wissen statt aus dem Buch.
+  Fand das Retrieval den passenden Abschnitt nicht, sinkt die Treue spürbar. Die Schwäche liegt
+  damit vor allem beim Retrieval, nicht beim Sprachmodell.
+- Der zweite Versuch im sokratischen Modus beseitigt verratene SQL-Begriffe zuverlässig, aber
+  nicht die Verweise auf „die Beispiele“. Das Modell beschreibt seine Quellen offenbar so
+  hartnäckig, dass eine Begründung allein nicht reicht. Er kostet im Median gut 3 Sekunden.
+
+**Grenzen:** 40 Fragen ergeben Tendenzen, keine statistisch belastbaren Unterschiede; die Treue-
+Werte nach Retrieval-Treffer beruhen auf 13 und 5 Antworten. Die Leck-Prüfung erkennt
+SQL-Begriffe, aber keine verratenen Tabellen- oder Spaltennamen.
 
 ## Testbarkeit
 
@@ -407,6 +490,17 @@ zur Antwort, ohne Modell und ohne Ollama.
   am Ende des Hinweises läuft deshalb ins Leere. Echtes sokratisches Lernen braucht den Dialog
   (Tutor fragt, Lernende antworten, Tutor reagiert). Der nächste Schritt wäre ein Feld `history`
   mit den bisherigen Nachrichten.
+- Typische Schwächen des 8B-Modells, die die Bewertung zeigte und die bewusst nicht weiter
+  bearbeitet wurden: eigene Beispiele werden als „aus der Quelle“ ausgegeben; Code aus dem Buch
+  wird umbenannt oder mit Kommentaren versehen, obwohl Regel 4 das verbietet; Plaudern („Gute
+  Frage!“); „Frag gerne nach!“, obwohl die API keinen Gesprächsverlauf kennt. Einmal stand ein
+  erfundener Halbsatz in einem wörtlichen Zitat.
+- Bei einem Hinweiskasten des Buchs ging die Überschrift verloren („: Dies ist ein
+  Paradebeispiel dafür, wie Unterabfragen nicht benutzt werden sollen.“). Das Modell nutzte genau
+  dieses abschreckende Beispiel, um ORDER BY zu erklären.
+- Mit fünf Auszügen passen nicht alle Varianten eines Themas ins Prompt. Bei „erste zehn Zeilen“
+  fehlte `TOP` für Microsoft SQL, obwohl das Buch es behandelt; das Modell sagte, die
+  Wissensbasis enthalte zu anderen Datenbanken nichts.
 - Eine genannte Quelle beweist nicht, dass die Aussage stimmt. Im Test stand hinter „HAVING kann
   nur mit Aggregatfunktionen kombiniert werden“ eine passende Quelle, die Aussage ist trotzdem zu
   stark verallgemeinert. Die Evals müssen prüfen, ob der Auszug die Aussage stützt.

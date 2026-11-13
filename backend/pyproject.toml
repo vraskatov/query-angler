@@ -12,6 +12,7 @@ dependencies = [
     "fastapi>=0.115",
     "snowballstemmer>=2.2",  # Wortstämme für die Stichwortsuche (BSD-3)
     "uvicorn[standard]>=0.30",
+    "python-multipart>=0.0.9",  # Datei-Uploads in FastAPI
 ]
 
 [dependency-groups]

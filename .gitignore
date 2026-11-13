@@ -10,6 +10,8 @@ __pycache__/
 data/clean/
 data/chunks/
 data/index/
+# Hochgeladenes Material von Lehrenden gehört nicht ins Repo
+data/uploads/
 
 # Node
 node_modules/

@@ -72,6 +72,26 @@ class Retriever:
             hits = self.reranker.rerank(question.strip(), hits)[:k]
         return hits
 
+    @property
+    def collection(self) -> Collection:
+        return self._collection
+
+    @property
+    def embedder(self) -> Embedder:
+        return self._embedder
+
+    def refresh(self) -> None:
+        """Nach Änderungen am Index (Upload, Löschen) den Stichwortindex neu aufbauen."""
+        if self.lexical is not None:
+            self.lexical = LexicalIndex.from_collection(self._collection)
+
+    def texts(self, ids: list[str]) -> dict[str, str]:
+        """Text der Chunks zu den IDs, so wie sie jetzt im Index stehen."""
+        if not ids:
+            return {}
+        stored = self._collection.get(ids=ids, include=["documents"])
+        return dict(zip(stored["ids"], stored["documents"], strict=True))
+
     def vector_search(self, question: str, k: int = 5, include_solutions: bool = True) -> list[Hit]:
         """Nur die Vektorsuche.
 
