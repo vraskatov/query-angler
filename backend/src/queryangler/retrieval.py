@@ -3,8 +3,9 @@
 Bis zu drei Stufen:
 1. Vektorsuche: vergleicht Bedeutungen. Frage und Chunk werden getrennt in Vektoren
    verwandelt und über den Winkel verglichen.
-2. Hybride Suche (Standard): zusätzlich eine Stichwortsuche (BM25). Beide Ranglisten
-   werden mit Reciprocal Rank Fusion zusammengeführt.
+2. Hybride Suche (optional, Standard aus): zusätzlich eine Stichwortsuche (BM25). Beide
+   Ranglisten werden zusammengeführt; welches Verfahren, steht in fuse(). Der Tutor nimmt
+   das aus QUERYANGLER_FUSION (config.FUSION).
 3. Reranker (optional, Standard aus): bewertet die besten Kandidaten noch einmal, indem
    er Frage und Chunk gemeinsam liest. Genauer, aber auf der CPU langsam.
 """

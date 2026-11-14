@@ -23,3 +23,6 @@ dist/
 
 # Lokale Einstellungen und Geheimnisse
 .env
+
+# Notizen für Claude Code
+CLAUDE.md
