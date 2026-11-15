@@ -35,7 +35,10 @@ from queryangler.evals.checks import (
     meta_references,
     missing_keywords,
 )
+from queryangler.guard import asks_for_syntax, names_in_code
 from queryangler.llm import LLMError, LLMUnavailableError
+from queryangler.prompt import Turn
+from queryangler.tutor import learner_text, search_query
 
 QUESTIONS_FILE = config.EVALS_DIR / "questions.toml"
 RESULTS_DIR = config.EVALS_DIR / "results"
@@ -86,14 +89,15 @@ def cmd_retrieval(args: argparse.Namespace) -> None:
     rows = []
     for q in questions:
         print(f"  {q.id}", flush=True)
-        vector, lexical = retriever.candidate_lists(q.question, q.mode != "sokratisch")
+        query = search_query(q.question, q.turns)  # wie im Tutor, auch bei Folgefragen
+        vector, lexical = retriever.candidate_lists(query, q.mode != "sokratisch")
         lists = {"Vektor": vector, "BM25": lexical}
         for name, method in RETRIEVAL_VARIANTS:
             if method:
                 lists[name] = fuse(vector, lexical, method[0], n, method[1])
         final = lists["Vektor"]
         if retriever.reranker:
-            lists["RRF + Reranker"] = retriever.reranker.rerank(q.question, lists["RRF"])
+            lists["RRF + Reranker"] = retriever.reranker.rerank(query, lists["RRF"])
             final = lists["RRF + Reranker"]
         rows.append(
             {
@@ -199,7 +203,7 @@ async def _run_answers(tutor: Any, questions: list[Question], label: str) -> lis
         for n, q in enumerate(questions, start=1):
             print(f"[{n}/{len(questions)}] {q.id} ...", flush=True)
             try:
-                answer = await tutor.ask(q.question, mode=q.mode)
+                answer = await tutor.ask(q.question, mode=q.mode, history=q.turns)
             except LLMUnavailableError:
                 raise  # Ollama läuft nicht: abbrechen statt 40 Fehler sammeln
             except LLMError as error:
@@ -226,11 +230,14 @@ def _answer_row(q: Question, answer: Any, label: str) -> dict[str, Any]:
         "label": label,
         "model": answer.model,
         "question": q.question,
+        "history": q.history,
         "answer": text,
         "sources": [
             {"number": s.number, "id": s.id, "path": f"{s.chapter} > {s.section}", "cited": s.cited}
             for s in answer.sources
         ],
+        "search_query": answer.search_query,
+        "syntax_stage": answer.syntax_stage,
         "llm_seconds": round(answer.timings.get("llm", 0.0), 2),
         "prompt_tokens": answer.prompt_tokens,
         "refusal": is_refusal(text),
@@ -245,7 +252,10 @@ def _answer_row(q: Question, answer: Any, label: str) -> dict[str, Any]:
         row["rating"] = None  # wird mit `rate` gefüllt
     if q.group == "sokratisch":
         row["form_ok"] = follows_socratic_form(text)
-        row["leaked"] = leaked_keywords(text, q.question)
+        learner = learner_text(q.question, q.turns)
+        row["leaked"] = (
+            names_in_code(text, learner) if answer.syntax_stage else leaked_keywords(text, learner)
+        )
         row["code_block"] = has_code_block(text)
         row["meta"] = meta_references(text)
     return row
@@ -358,14 +368,22 @@ def _derived(r: dict[str, Any], gold: dict[str, list[str]] | None = None) -> dic
     So gelten für alte und neue Läufe dieselben Regeln, auch wenn sich eine Prüfung
     geändert hat (z. B. Absage = beginnt mit dem Absagesatz).
     """
-    text, question = r["answer"], r["question"]
+    turns = [Turn(t["question"], t["answer"]) for t in r.get("history") or []]
+    text, question = r["answer"], learner_text(r["question"], turns)
     checks = r.get("checks") or []
+    # Stufe Schreibweise: Code und Schlüsselwörter erlaubt, Namen aus dem Gespräch nicht
+    syntax_stage = r.get("mode") == "sokratisch" and turns and asks_for_syntax(r["question"])
+    if syntax_stage:
+        leaked = names_in_code(text, question)
+    else:
+        leaked = leaked_keywords(text, question) + (["Codeblock"] if has_code_block(text) else [])
     return {
         "refusal": is_refusal(text),
         "addition": has_addition_after_refusal(text) or any("Absage: Zusatz" in c for c in checks),
         "form_ok": follows_socratic_form(text),
-        "leak": bool(leaked_keywords(text, question)) or has_code_block(text),
-        "leaked": leaked_keywords(text, question) + (["Codeblock"] if has_code_block(text) else []),
+        "leak": bool(leaked),
+        "leaked": leaked,
+        "syntax_stage": bool(syntax_stage),
         "meta": meta_references(text),
         "retry": r.get("attempts", 1) > 1,
         "gold_found": r.get("gold_in_sources")
@@ -457,6 +475,18 @@ def _answers_report(
     row(
         "Ohne Verweis auf Quellen",
         lambda rs: share(group(rs, "sokratisch"), lambda r: not r["meta"]),
+    )
+    row(
+        "… davon im Dialog ohne Leck",
+        lambda rs: share(
+            [r for r in group(rs, "sokratisch") if r.get("history")], lambda r: not r["leak"]
+        ),
+    )
+    row(
+        "… davon Stufe Schreibweise ohne eingesetzte Namen",
+        lambda rs: share(
+            [r for r in group(rs, "sokratisch") if r["syntax_stage"]], lambda r: not r["leak"]
+        ),
     )
     row("Zweiter Versuch nötig", lambda rs: share(group(rs, "sokratisch"), lambda r: r["retry"]))
     row("**Laufzeit** (Median Sekunden LLM)", lambda rs: "")

@@ -363,6 +363,78 @@ mit denselben Funktionen, die auch die Evals verwenden:
 - **Dependency Injection:** `create_app(build_tutor)` nimmt die Funktion entgegen, die den Tutor
   baut. Die Tests übergeben einen Tutor mit Ersatzteilen.
 
+## Gesprächsverlauf
+
+Der sokratische Modus ist erst mit Verlauf ein Dialog: Tutor fragt, Lernende antworten, Tutor
+reagiert. Ohne Verlauf lief die Frage am Ende jedes Hinweises ins Leere.
+
+- **Der Verlauf kommt vom Browser.** `/ask` nimmt ein optionales Feld `history` mit den letzten
+  Wortwechseln an; die Oberfläche schickt sie bei jeder Frage mit. Der Server speichert nichts.
+  So bleibt er zustandslos: Mehrere Kopien hinter einem Load Balancer können jede Anfrage
+  übernehmen, es braucht keine Sitzungen und keine Datenbank, und auf dem Server liegen keine
+  Gespräche. Preis: Beim Neuladen der Seite ist der Verlauf weg.
+- **Höchstens fünf Wortwechsel, wörtlich.** Ein sokratischer Wortwechsel hat etwa 100 Token,
+  eine Erklärung einige hundert. Wird der Prompt zu lang, fällt zuerst der älteste Wortwechsel
+  weg, erst dann der schwächste Auszug: Die Quellen sind wichtiger als die Vorgeschichte.
+- **Verworfen: eine laufende Zusammenfassung** älterer Wortwechsel durch das Modell (zwei
+  Wortwechsel wörtlich, davor ein „Lernstand“). Sie kostete bei jeder Frage einen zweiten Aufruf
+  des Modells, also Wartezeit, und ein 8B-Modell fasst nicht zuverlässig treu zusammen; im
+  sokratischen Modus könnte die Zusammenfassung sogar die Lösung enthalten. Für längere Gespräche
+  wäre sie der nächste Schritt.
+- **Quellenverweise werden aus früheren Antworten entfernt.** „[2]“ zeigte auf die Quellen der
+  damaligen Frage und würde das Modell bei der neuen verwirren.
+- **Folgefragen mit Query Rewriting:** „Und mit drei Tabellen?“ oder „Mir fehlt die Syntax“
+  finden allein nichts Brauchbares. Zuerst suchte das Retrieval deshalb mit der ersten, der vorigen
+  und der aktuellen Nachricht. Im echten Dialog reichte das nicht: Der Lernende schrieb nie „JOIN“,
+  sondern „zusammenführen“, und die Suche fand Prozeduren und Trigger. Seitdem formuliert das
+  Modell bei jeder Folgenachricht aus dem Gespräch eine kurze Suchanfrage in Fachsprache. Es nutzt
+  dabei eigenes Wissen, aber nur für die Suche; die Antwort bleibt an die Quellen gebunden. Kosten:
+  ein kurzer zusätzlicher Aufruf, nur im Gespräch. Einzelne Fragen sind so schnell wie vorher, die
+  bisherigen Evals bleiben vergleichbar. Scheitert der Aufruf, sucht der Tutor wie zuvor mit den
+  Nachrichten der Lernenden. Die Antwort nennt die verwendete Suchanfrage (`search_query`).
+- **Nicht im Kreis drehen:** Im Dialog stellte das Modell dreimal dieselbe Frage, obwohl der
+  Lernende sie beantwortet hatte. Die Regel, auf die letzte Nachricht einzugehen, steht deshalb
+  zusätzlich in der Erinnerung am Ende, die kleine Modelle am stärksten beachten.
+- **Stufe Schreibweise:** Im echten Dialog hatte der Lernende nach drei Runden alles verstanden
+  (gemeinsame Spalte, gleiche Werte) und schrieb „Ich weiß nicht, wie man den Code schreibt“. Der
+  Tutor stellte Varianten derselben Frage und fing schließlich von vorn an: Der sokratische Modus
+  hatte keine letzte Stufe. Bittet jemand im laufenden Gespräch ausdrücklich um Syntax oder Code,
+  zeigt der Tutor jetzt die allgemeine Schreibweise mit Platzhaltern (`<tabelle1>`, `<spalte>`) und
+  fragt, was die Lernenden einsetzen würden. Gestufte Hilfe wie bei einer Lehrkraft: das Gerüst
+  zeigen, ausfüllen lassen. Ob die Stufe gilt, entscheidet ein festes Muster im Code
+  (`asks_for_syntax`), nicht das Modell, und nur im Gespräch: „Wie schreibe ich eine Abfrage, die
+  …?“ als erste Frage ist eine Aufgabe, keine Bitte um Syntax. Auch die Prüfung bleibt im Code:
+  Code und Schlüsselwörter sind erlaubt, die Namen aus den Nachrichten der Lernenden im Code nicht
+  (`names_in_code`). Stehen dort `sales` oder `fahrzeug_id`, wäre es die fertige Lösung, und es
+  gibt einen zweiten Versuch. Die Oberfläche maskiert Platzhalter außerhalb von Code, sonst hielte
+  der Browser `<tabelle1>` für ein HTML-Tag.
+- **Spicken:** Die Schreibweise kann man sich nicht erschließen, man muss sie einmal sehen. Ein
+  sokratischer Tutor, der sie nie zeigt, lässt Lernende bei „Mir fehlt die Syntax“ hängen. Unter
+  der letzten sokratischen Antwort steht deshalb „Spicken: im Modus Erklären zeigen“: dieselbe
+  Nachricht samt Verlauf noch einmal im Modus Erklären. Die Lernenden entscheiden selbst, wann sie
+  spicken; der sokratische Modus bleibt streng, und die Entscheidung hängt nicht daran, dass ein
+  8B-Modell eine Regel zum Eskalieren befolgt. Verworfen: im sokratischen Modus auf Bitte das
+  allgemeine Schema zeigen. Die Prüfung müsste dann zwischen Schema und Lösung unterscheiden.
+- **Unklare Anfrage, Rückfrage zuerst:** Auf „Ich habe ein Problem beim Zusammenführen von
+  Tabellen“ bastelte das Modell einen Hinweis aus den gefundenen Abschnitten und fragte dann, welche
+  von zwei Methoden „logischer klingt“. Die feste Form zwang es zu einem Denkanstoß, obwohl es
+  keine Aufgabe gab. Neue Regel mit Muster: Ist nicht klar, woran die Lernenden arbeiten, fragt
+  der Tutor zuerst nach der Aufgabe. Ohne Verlauf wäre das sinnlos gewesen, weil der Tutor die
+  Antwort nicht gekannt hätte. Zugleich sprach es die Lernenden mit „ihr“ an: Im Prompt hieß es
+  überall „die Lernenden“. Regel 7 verlangt jetzt ausdrücklich „du“; das wirkt zuverlässig. Die
+  Rückfrage-Regel dagegen befolgt das Modell nicht (Eval und echte Dialoge, siehe Grenzen). Was
+  zuverlässig hilft, hängt nicht vom Modell ab: Im sokratischen Modus fordert das Eingabefeld auf,
+  die Aufgabe zu beschreiben („Welche Tabellen hast du, was soll herauskommen?“).
+- **Empfehlungen des Buchs je nach Modus:** Im Modus Erklären gibt der Tutor Einstufungen wie
+  „traditionell“ oder „vorzuziehen“ wieder (Regel 13). Im sokratischen Modus machte dieselbe
+  Regel aus „Wie mache ich einen JOIN?“ die Frage, welche von zwei Methoden „praktischer klingt“.
+  Dort lenkt der Hinweis jetzt auf den empfohlenen Weg, den anderen erwähnt er höchstens in einem
+  Nebensatz, und Fragen nach Vorlieben oder einer Auswahl zwischen Methoden sind ausgeschlossen.
+- **Sokratisch im Dialog:** Eine eigene Regel verlangt, auf die Überlegung der Lernenden
+  einzugehen: Richtiges bestätigen, bei Falschem zeigen, woran es hakt, die Lösung nie verraten.
+  Die Prüfung auf verratene Begriffe vergleicht mit allem, was die Lernenden geschrieben haben.
+  Schreibt jemand selbst „GROUP BY“, darf der Tutor das bestätigen, ohne dass es als Leck zählt.
+
 ## Oberfläche und eigenes Material
 
 ### Oberfläche
@@ -377,8 +449,8 @@ mit denselben Funktionen, die auch die Evals verwenden:
   Farben: hell mit Pastellgelb und Anthrazit, dunkel umgekehrt, Akzente in beiden Orange.
 - **Antworten als Markdown** (`marked`), bereinigt mit `DOMPurify`. Das Sprachmodell erzeugt Text,
   der als HTML in die Seite kommt; ohne Bereinigung könnte eine Antwort Skripte einschleusen.
-- **Ehrlich zu den Grenzen:** Unter dem Eingabefeld steht, dass jede Frage einzeln beantwortet
-  wird. Hat der Tutor abgesagt oder einen zweiten Versuch gebraucht, steht das unter der Antwort.
+- **Ehrlich zu den Grenzen:** Unter dem Eingabefeld steht, wie viel Verlauf der Tutor
+  berücksichtigt; „Neues Gespräch“ leert ihn. Hat der Tutor abgesagt oder einen zweiten Versuch gebraucht, steht das unter der Antwort.
 - **Quellenliste passend zur Antwort:** Bei einer Absage erscheint keine Liste. Zitiert eine
   Erklärung keine Quelle, etwa bei einem Gruß, heißt die Liste „Gefundene Abschnitte, nicht
   zitiert“. Ganz ausblenden wäre falsch, denn auch eine echte Antwort vergisst manchmal das Zitat.
@@ -411,17 +483,19 @@ Tests prüfen, ob der Code tut, was er soll. Evals messen, wie gut das System an
 Sprachmodell ist nicht deterministisch, deshalb laufen die Evals getrennt von den Tests und mit
 dem echten Modell.
 
-**Testfragen** (`evals/questions.toml`), 44 Stück in vier Gruppen:
+**Testfragen** (`evals/questions.toml`), 54 Stück in vier Gruppen:
 
 | Gruppe | Anzahl | Erwartung |
 |---|---|---|
-| `im_buch` | 18 | richtige Antwort mit Quelle; darunter Umformulierungen ohne die Fachbegriffe des Buchs |
+| `im_buch` | 21 | richtige Antwort mit Quelle; darunter Umformulierungen ohne die Fachbegriffe des Buchs und zwei Folgefragen |
 | `nah_dran` | 10 | Absage; SQL-Themen, die das Buch nicht erklärt (geprüft gegen alle Chunks; MERGE und Isolationsstufen stehen nur in der Liste der Schlüsselwörter) |
 | `fremd` | 6 | Absage |
-| `sokratisch` | 10 | Hinweis und Frage ohne Lösung |
+| `sokratisch` | 17 | Hinweis und Frage ohne Lösung; fünf davon in einem laufenden Dialog (zwei mit der Bitte um die Schreibweise), eine ohne erkennbare Aufgabe |
 
 Vier der Absage-Fragen (zwei aus `nah_dran`, zwei aus `fremd`) laufen mit `mode = "sokratisch"`,
-damit die Absage auch in diesem Modus geprüft wird.
+damit die Absage auch in diesem Modus geprüft wird. Acht Fragen bringen ein vorgegebenes
+Gespräch mit (`history`); die Antworten des Tutors darin stehen fest im Test, damit jeder Lauf
+dieselbe Ausgangslage hat.
 
 Das erwartete Retrieval-Ziel ist ein Abschnitt („Kapitel > Abschnitt“), keine Chunk-ID. So bleiben
 die Fragen gültig, wenn sich das Chunking ändert.
@@ -506,7 +580,31 @@ strengere Bindung an die Quellen macht also einen Fehler des Retrievals sichtbar
 vorher mit eigenem Wissen verdeckt hatte. Für einen Tutor, der sich auf das Buch beruft, ist das
 die ehrlichere Variante; die Abhilfe gehört ins Retrieval (Query Rewriting). Die Regeln bleiben.
 
-**Grenzen:** 44 Fragen ergeben Tendenzen, keine statistisch belastbaren Unterschiede; die Treue-
+**Lauf vom 15.11.2026 mit Gesprächsverlauf** (54 Fragen; Verlauf, Query Rewriting im Gespräch,
+Stufe Schreibweise, Anrede mit „du“):
+
+| Kennzahl | Ergebnis |
+|---|---|
+| Absage bei Fragen ohne Grundlage | 16 von 16, davon im sokratischen Modus 4 von 4 |
+| Fälschlich abgesagt, Fragen im Buch | 2 von 21 (vorher 0 von 18) |
+| Sokratisch: Form / ohne Leck / ohne Verweis auf Quellen | 16 / 17 / 9 von 17 |
+| Dialoge ohne Leck; Stufe Schreibweise ohne eingesetzte Namen | 5 von 5; 2 von 2 |
+| Median Antwortzeit LLM: Erklären / Sokratisch | 7,4 / 7,3 s |
+
+Die umformulierten Suchanfragen sind durchweg brauchbar („INNER JOIN Syntax mit gemeinsamer
+Spalte“, „LIKE mit Wildcard für Präfixsuche“); im echten Dialog, in dem der Lernende nie „JOIN“
+schrieb, fand die Suche jetzt die Kapitel zu JOIN statt Prozeduren und Trigger. Die Stufe
+Schreibweise zeigte beide Male das Gerüst mit Platzhaltern. Anrede mit „ihr“: keine mehr.
+
+Die zwei falschen Absagen (`absteigend-sortieren`, `fallunterscheidung`) haben dieselbe Ursache:
+Der richtige Abschnitt war nicht unter den Quellen. Bei „Wie sortiere ich das Ergebnis
+absteigend?“ fand die Suche fünf Abschnitte aus „Unterabfragen“, vermutlich wegen des Wortes
+„Ergebnis“. Früher antwortete das Modell trotzdem aus eigenem Wissen, jetzt sagt es ab: die Folge
+der strengeren Bindung an die Quellen. Query Rewriting würde beide Fälle vermutlich lösen, läuft
+aber bisher nur im Gespräch, damit einzelne Fragen schnell bleiben (nächster Schritt, siehe
+Ausblick).
+
+**Grenzen:** 54 Fragen ergeben Tendenzen, keine statistisch belastbaren Unterschiede; die Treue-
 Werte nach Retrieval-Treffer beruhen auf 13 und 5 Antworten. Die Leck-Prüfung erkennt
 SQL-Begriffe, aber keine verratenen Tabellen- oder Spaltennamen.
 
@@ -565,15 +663,31 @@ Docker-Image baut sie nicht, weil der Download von Torch den Lauf stark verläng
 - Die Token-Schätzung für den Prompt ist grob (Zeichen geteilt durch 3). Gemessen sind es etwa
   3,9 Zeichen pro Token, die Schätzung liegt also rund 30 % zu hoch. Das ist gewollt: Lieber fällt
   ein Auszug zu viel weg, als dass Ollama den Prompt still kürzt.
-- Der sokratische Modus ist ein Hinweismodus: Die API kennt keinen Gesprächsverlauf, die Frage
-  am Ende des Hinweises läuft deshalb ins Leere. Echtes sokratisches Lernen braucht den Dialog
-  (Tutor fragt, Lernende antworten, Tutor reagiert). Der nächste Schritt wäre ein Feld `history`
-  mit den bisherigen Nachrichten.
+- Der Verlauf umfasst höchstens fünf Wortwechsel und geht beim Neuladen der Seite verloren.
+- Die Retrieval-Eval misst Folgefragen ohne Query Rewriting (sie läuft ohne Sprachmodell). Ob die
+  umformulierte Suche den richtigen Abschnitt findet, zeigt nur die Antwort-Eval
+  („Richtiger Abschnitt unter den Quellen“).
+- Gesprächsführung ist die Grenze des 8B-Modells. In echten Dialogen bestätigt der Tutor richtige
+  Antworten oft nicht („Maximal 9 Zeilen?“ beim kartesischen Produkt, richtig, und es folgt die
+  nächste Rechenfrage). Fragt er bei einer vagen Anfrage nicht nach der Aufgabe, folgt er einem
+  eigenen Lehrplan statt dem Ziel der Lernenden (vom kartesischen Produkt zu Dienstwagen, obwohl
+  der Lernende zwei Tabellen verbinden wollte). Auf Bemerkungen über das Gespräch („Ich verstehe
+  dich nicht“, „Du hast die Antwort schon verraten“) geht er nicht ein. Weitere Regeln im Prompt
+  helfen hier nicht verlässlich und verschlechtern andere Stellen; der Prompt ist deshalb
+  eingefroren. Abhilfe wäre ein größeres Modell oder ein festgehaltener Lernstand (siehe Ausblick).
+- Sokratische Hinweise sind oft länger als die verlangten zwei Sätze und erfinden Kontext („eine
+  Liste mit Verkäufern“), den die Lernenden nie genannt haben. Ein zweiter Versuch nur wegen der
+  Länge kostete jedes Mal Wartezeit und wurde deshalb nicht eingebaut.
+- Einstufungen auf Kapitelebene erreichen das Modell nicht. Das Buch nennt die Verknüpfung über
+  FROM und WHERE den „traditionellen Weg“ und JOIN den „modernen“, aber nur am Kapitelanfang und
+  in der Zusammenfassung. Findet das Retrieval nur den Abschnitt mit dem alten Beispiel, zeigt der
+  Tutor es ohne diese Einordnung; Regel 3 hilft nur, wenn die Einstufung im gefundenen Abschnitt
+  steht. Abhilfe wäre, jedem Chunk den Kapitelkontext mitzugeben (Contextual Chunk Headers);
+  das ändert die Embeddings und braucht deshalb eine neue Messung des Retrievals.
 - Typische Schwächen des 8B-Modells, die die Bewertung zeigte und die bewusst nicht weiter
   bearbeitet wurden: eigene Beispiele werden als „aus der Quelle“ ausgegeben; Code aus dem Buch
   wird umbenannt oder mit Kommentaren versehen, obwohl Regel 4 das verbietet; Plaudern („Gute
-  Frage!“); „Frag gerne nach!“, obwohl die API keinen Gesprächsverlauf kennt (seit den Regeln
-  vom 13.11. seltener). Einmal stand ein erfundener Halbsatz in einem wörtlichen Zitat.
+  Frage!“); „Frag gerne nach!“ (seit den Regeln vom 13.11. seltener). Einmal stand ein erfundener Halbsatz in einem wörtlichen Zitat.
 - Eigene Beispiele soll das Modell mit „Eigenes Beispiel:“ kennzeichnen. Es tut das nicht
   zuverlässig; im Lauf vom 13.11. fehlte die Kennzeichnung bei einem erfundenen Beispiel.
 - Bei einem Hinweiskasten des Buchs ging die Überschrift verloren („: Dies ist ein
@@ -594,8 +708,17 @@ Anfragen laufend bündelt (Continuous Batching) und den Speicher dafür effizien
 App das OpenAI-kompatible Format spricht, ändert sich dafür nur die Adresse in
 `QUERYANGLER_LLM_BASE_URL`.
 
-- **Mehr Last:** mehrere Kopien des Inferenzservers hinter einem Load Balancer. Weil jede Frage
-  einzeln beantwortet wird, kann jede Kopie jede Anfrage übernehmen.
+- **Mehr Last:** mehrere Kopien des Inferenzservers hinter einem Load Balancer. Weil der Server
+  keinen Zustand hält (auch den Verlauf schickt der Browser mit), kann jede Kopie jede Anfrage
+  übernehmen.
+- **Größeres Modell für den Dialog:** Bestätigen, nachfragen, auf Bemerkungen eingehen sind
+  Fähigkeiten, die mit der Modellgröße wachsen. Auf einem Inferenzserver einer Hochschule wäre
+  ein deutlich größeres Modell möglich; die App bleibt dank OpenAI-Format unverändert.
+- **Lernstand:** ein festgehaltener Stand je Gespräch (Aufgabe, was schon erkannt ist, wo es
+  hakt), den der Tutor bei jeder Antwort mitbekommt. Damit folgte er dem Ziel der Lernenden statt
+  einem eigenen Plan, und längere Gespräche passten in den Kontext.
+- **Query Rewriting für alle Fragen und Kapitelkontext in den Chunks:** Beide gehen die Wortlücke
+  zwischen Fragen und Buch an und sollten gemeinsam gemessen werden.
 - **Gemeinsamer Index:** Der Index liegt derzeit als Datei beim Container. Mit mehreren
   App-Kopien müssten alle denselben Stand sehen, sobald Lehrende Material hochladen; dafür
   bräuchte es Chroma im Servermodus oder eine gemeinsame Vektordatenbank.

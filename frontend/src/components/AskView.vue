@@ -12,7 +12,18 @@ const busy = ref(false);
 const seconds = ref(0);
 let timer = null;
 
+// Im sokratischen Modus fragte das Modell bei vagen Anfragen nicht nach der Aufgabe, sondern
+// verfolgte einen eigenen Lehrplan. Diese Hilfe hängt nicht vom Modell ab.
+const placeholder = computed(() =>
+  mode.value === "sokratisch"
+    ? "Beschreib deine Aufgabe: Welche Tabellen hast du, was soll herauskommen?"
+    : "Deine Frage zu SQL …",
+);
+
 const canSend = computed(() => question.value.trim().length >= 3 && !busy.value);
+
+// So viele Wortwechsel nimmt das Backend höchstens an (HISTORY_TURNS in prompt.py).
+const HISTORY_TURNS = 5;
 
 const examples = [
   "Was unterscheidet WHERE von HAVING?",
@@ -20,16 +31,46 @@ const examples = [
   "Wie verknüpfe ich eine Tabelle mit sich selbst?",
 ];
 
-async function send() {
+// Die letzten beantworteten Wortwechsel, älteste zuerst. Fehlgeschlagene zählen nicht.
+function history() {
+  return exchanges.value
+    .filter((entry) => entry.answer)
+    .slice(-HISTORY_TURNS)
+    .map((entry) => ({ question: entry.question, answer: entry.answer.text }));
+}
+
+function send() {
   if (!canSend.value) return;
-  exchanges.value.push({ question: question.value.trim(), mode: mode.value, answer: null, error: null });
-  const entry = exchanges.value.at(-1); // die reaktive Fassung, damit Änderungen sichtbar werden
+  const text = question.value.trim();
   question.value = "";
+  submit(text, mode.value);
+}
+
+// "Spicken": Die letzte Nachricht noch einmal im Modus Erklären stellen, samt Verlauf.
+// Die Lernenden entscheiden selbst, wann sie die Schreibweise sehen wollen. Der sokratische
+// Modus bleibt streng; die Syntax kann man sich nicht erschließen, nur einmal sehen.
+function peek(entry) {
+  if (!busy.value) submit(entry.question, "erklaeren", true);
+}
+
+function canPeek(entry, index) {
+  return (
+    index === exchanges.value.length - 1 &&
+    entry.mode === "sokratisch" &&
+    entry.answer &&
+    !entry.answer.text.startsWith("Dazu enthält meine Wissensbasis nichts")
+  );
+}
+
+async function submit(text, modeValue, peeked = false) {
+  const earlier = history(); // vor dem Hinzufügen der neuen Frage
+  exchanges.value.push({ question: text, mode: modeValue, peeked, answer: null, error: null });
+  const entry = exchanges.value.at(-1); // die reaktive Fassung, damit Änderungen sichtbar werden
   busy.value = true;
   seconds.value = 0;
   timer = setInterval(() => seconds.value++, 1000);
   try {
-    entry.answer = await ask(entry.question, entry.mode);
+    entry.answer = await ask(entry.question, entry.mode, earlier);
   } catch (error) {
     entry.error = error.message;
   } finally {
@@ -38,6 +79,10 @@ async function send() {
     await nextTick();
     document.querySelector(".exchange:last-of-type")?.scrollIntoView({ behavior: "smooth" });
   }
+}
+
+function newConversation() {
+  if (!busy.value) exchanges.value = [];
 }
 
 function onKeydown(event) {
@@ -51,7 +96,18 @@ function onKeydown(event) {
 // Das Modell antwortet in Markdown. DOMPurify entfernt alles, was im Browser
 // ausgeführt werden könnte, damit eine Antwort keinen Code in die Seite einschleust.
 function render(text) {
-  return DOMPurify.sanitize(marked.parse(text));
+  return DOMPurify.sanitize(marked.parse(escapePlaceholders(text)));
+}
+
+// Platzhalter wie <tabelle1> hielte der Browser außerhalb von Code für HTML-Tags und
+// DOMPurify würde sie entfernen. In Codeblöcken und `Code` maskiert marked selbst.
+function escapePlaceholders(text) {
+  return text
+    .split("```")
+    .map((part, i) =>
+      i % 2 ? part : part.replace(/(`[^`]*`)|<([\wäöüÄÖÜß]{1,30})>/g, (m, code, name) => code ?? `&lt;${name}&gt;`),
+    )
+    .join("```");
 }
 
 // Bei einer Absage gehören die gefundenen Abschnitte nicht zur Antwort.
@@ -75,6 +131,9 @@ function notes(answer) {
   if (answer.checks.some((c) => c.startsWith("Absage"))) {
     list.push("Das Buch und das hochgeladene Material enthalten dazu nichts.");
   }
+  if (answer.syntax_stage) {
+    list.push("Der Tutor zeigt hier nur das Gerüst. Deine eigenen Tabellen und Spalten setzt du selbst ein.");
+  }
   if (answer.attempts > 1) {
     list.push("Der erste Hinweis verriet zu viel, der Tutor hat ihn neu formuliert.");
   }
@@ -90,7 +149,7 @@ onBeforeUnmount(() => clearInterval(timer));
       <p>
         Stell eine Frage zu SQL. Im Modus <strong>Erklären</strong> bekommst du eine Antwort mit
         Beispiel, im Modus <strong>Sokratisch</strong> nur einen Hinweis und eine Rückfrage, damit
-        du selbst auf die Lösung kommst.
+        du selbst auf die Lösung kommst. Beschreib dafür deine Aufgabe möglichst genau.
       </p>
       <p>Die erste Frage kann etwas länger dauern, weil das Sprachmodell erst geladen wird.</p>
       <p class="examples">
@@ -104,6 +163,7 @@ onBeforeUnmount(() => clearInterval(timer));
     <article v-for="(entry, index) in exchanges" :key="index" class="exchange">
       <p class="question">
         <span class="badge">{{ entry.mode === "sokratisch" ? "Sokratisch" : "Erklären" }}</span>
+        <span v-if="entry.peeked" class="badge">Gespickt</span>
         {{ entry.question }}
       </p>
 
@@ -143,6 +203,15 @@ onBeforeUnmount(() => clearInterval(timer));
         </details>
 
         <p class="meta">
+          <button
+            v-if="canPeek(entry, index)"
+            type="button"
+            class="link peek"
+            :disabled="busy"
+            @click="peek(entry)"
+          >
+            Spicken: im Modus Erklären zeigen
+          </button>
           {{ entry.answer.model }} · {{ entry.answer.timings.llm?.toFixed(1) ?? "–" }} s
         </p>
       </template>
@@ -155,13 +224,24 @@ onBeforeUnmount(() => clearInterval(timer));
           v-model="question"
           rows="2"
           maxlength="1000"
-          placeholder="Deine Frage zu SQL …"
+          :placeholder="placeholder"
           aria-label="Frage"
           @keydown="onKeydown"
         />
         <button type="submit" class="primary" :disabled="!canSend">Fragen</button>
       </div>
-      <p class="hint">Jede Frage wird einzeln beantwortet, der Tutor kennt den Verlauf nicht.</p>
+      <p class="hint">
+        Der Tutor berücksichtigt die letzten fünf Wortwechsel.
+        <button
+          v-if="exchanges.length"
+          type="button"
+          class="link"
+          :disabled="busy"
+          @click="newConversation"
+        >
+          Neues Gespräch
+        </button>
+      </p>
     </form>
   </section>
 </template>

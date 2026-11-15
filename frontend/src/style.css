@@ -126,11 +126,14 @@ button.danger { background: none; border: 1px solid var(--error); color: var(--e
 .tag { font-size: 0.75rem; border: 1px solid var(--border); border-radius: 6px; padding: 0 6px; margin-left: 6px; }
 .license { font-size: 0.75rem; margin-left: 6px; color: var(--muted); }
 .meta { font-size: 0.75rem; color: var(--muted); margin: 8px 0 0; text-align: right; }
+.meta .peek { float: left; }
 
 .composer { position: sticky; bottom: 0; background: var(--bg); padding: 12px 0 8px; }
 .input-row { display: flex; gap: 8px; margin-top: 8px; align-items: stretch; }
 .input-row textarea { flex: 1; resize: vertical; font: inherit; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--input-bg); color: var(--text); }
-.hint { font-size: 0.75rem; color: var(--muted); margin: 6px 0 0; }
+.hint { font-size: 0.75rem; color: var(--muted); margin: 6px 0 0; display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; }
+button.link { background: none; border: none; padding: 0; font: inherit; color: var(--accent); text-decoration: underline; cursor: pointer; }
+button.link:disabled { opacity: 0.45; cursor: default; }
 
 /* Schalter Erklären | Sokratisch */
 .mode-switch { position: relative; display: inline-grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--border); border-radius: 999px; padding: 3px; background: var(--input-bg); }

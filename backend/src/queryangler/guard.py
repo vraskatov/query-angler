@@ -101,12 +101,70 @@ def socratic_problems(answer: str, question: str, include_form: bool = False) ->
     return problems
 
 
+# --- Stufe Schreibweise ----------------------------------------------------------
+# Die Syntax kann man sich nicht erschließen. Bittet jemand im laufenden Gespräch
+# ausdrücklich darum, zeigt der Tutor das allgemeine Schema mit Platzhaltern; das
+# Einsetzen der eigenen Namen bleibt Aufgabe der Lernenden. Ob die Stufe gilt,
+# entscheidet dieses Muster, nicht das Modell.
+_SYNTAX_REQUEST = re.compile(
+    r"\b(Syntax|Schreibweise|Code|Befehl)\b"
+    r"|wie (?:man|ich) (?:das|den|die|es)?\s*(?:\w+ )?schreib"
+    r"|wie schreib\w* (?:ich|man) (?:das|den|es|ihn)\b"
+    r"|wie sieht (?:das|der|die) .{0,30}aus",
+    re.IGNORECASE,
+)
+
+
+def asks_for_syntax(message: str) -> bool:
+    return bool(_SYNTAX_REQUEST.search(message))
+
+
+_CODE_BLOCK = re.compile(r"```[a-zA-Z]*\n?(.*?)```", re.DOTALL)
+_PLACEHOLDER = re.compile(r"<[^<>\n]{1,40}>")
+_WORD = re.compile(r"[A-Za-zÄÖÜäöüß_][A-Za-zÄÖÜäöüß0-9_]{2,}")
+
+
+def names_in_code(answer: str, learner: str) -> list[str]:
+    """Wörter der Lernenden (etwa Tabellen- und Spaltennamen), die im Code der Antwort stehen.
+
+    Platzhalter in spitzen Klammern und SQL-Schlüsselwörter zählen nicht.
+    """
+    code = " ".join(_PLACEHOLDER.sub(" ", block) for block in _CODE_BLOCK.findall(answer))
+    if not code:
+        return []
+    keywords = {k for keyword in SQL_KEYWORDS for k in keyword.split()} | {"ON", "AS", "AND", "OR"}
+    learner_words = {w.lower() for w in _WORD.findall(learner) if w.upper() not in keywords}
+    return sorted({w for w in _WORD.findall(code) if w.lower() in learner_words})
+
+
+def syntax_stage_problems(answer: str, learner: str) -> list[str]:
+    """Wie socratic_problems, aber für die Stufe Schreibweise: Code und Schlüsselwörter sind
+    erlaubt, die Namen aus dem Gespräch im Code nicht. Sonst wäre es die fertige Lösung."""
+    problems = []
+    if names := names_in_code(answer, learner):
+        problems.append(f"sie setzt Namen aus dem Gespräch in den Code ein ({', '.join(names)})")
+    if meta := meta_references(answer):
+        problems.append(
+            f"sie verweist auf Material, das die Lernenden nicht sehen ({', '.join(meta)})"
+        )
+    return problems
+
+
+def syntax_stage_retry_message(problems: list[str]) -> str:
+    return (
+        f"Deine Antwort passt noch nicht: {'; '.join(problems)}. "
+        "Schreib sie neu. Zeig nur die allgemeine Schreibweise mit Platzhaltern in spitzen "
+        "Klammern wie <tabelle1> und <spalte>. Das Einsetzen der eigenen Namen ist die Aufgabe "
+        'der Lernenden. Antworte nur mit "Hinweis:" und "Frage:".'
+    )
+
+
 def socratic_retry_message(problems: list[str]) -> str:
     """Rückmeldung an das Modell für den zweiten Versuch."""
     return (
         f"Deine Antwort passt noch nicht: {'; '.join(problems)}. "
-        "Schreib sie neu. Kein SQL, keine Fachbegriffe der Lösung. Sprich die Lernenden "
-        "direkt an und erkläre in Alltagssprache, worüber sie nachdenken sollen. "
+        "Schreib sie neu. Kein SQL, keine Fachbegriffe der Lösung. Sprich die Person direkt "
+        'mit "du" an und erkläre in Alltagssprache, worüber sie nachdenken soll. '
         'Antworte nur mit "Hinweis:" und "Frage:". '
         # Ohne diesen Ausweg bastelte das Modell bei "Was ist das Leben?" einen Hinweis
         # auf Trigger, statt abzusagen.

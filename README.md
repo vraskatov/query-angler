@@ -13,6 +13,17 @@ Ausgelegt für ein lokal laufendes Sprachmodell (Ollama), sodass keine Daten den
 Wissensbasis ist das Wikibook „Einführung in SQL“ (CC BY-SA), siehe [ATTRIBUTION.md](ATTRIBUTION.md).
 Designentscheidungen und ihre Begründung: [docs/ARCHITEKTUR.md](docs/ARCHITEKTUR.md).
 
+**Einordnung:** Query Angler ist ein Proof of Concept. Er zeigt, dass ein quellentreuer Tutor
+mit offenen Bausteinen lokal machbar ist, und misst, wo er an Grenzen stößt. Ziel wäre der
+Betrieb an einer Hochschule als Dienst auf einem Inferenzserver, angebunden an Moodle
+(siehe [Ausblick](docs/ARCHITEKTUR.md#ausblick-betrieb-an-einer-hochschule)).
+
+**Voraussetzungen:** Eine NVIDIA-Grafikkarte mit mindestens 8 GB Speicher (entwickelt auf einer
+RTX 2000 Ada mit 8 GB) und etwa 30 GB freier Speicherplatz für Modelle und Images. Beim
+Einrichten werden die Modelle einmalig heruntergeladen: Ministral 3 8B mit rund 6 GB, BGE-M3
+und der Reranker mit zusammen rund 4,5 GB. Ohne GPU läuft das Sprachmodell auf der CPU, aber
+deutlich langsamer.
+
 ## Stand
 
 - [x] Ingest: Kapitel über die MediaWiki-API laden, Revisionen festhalten, HTML bereinigen
@@ -23,6 +34,7 @@ Designentscheidungen und ihre Begründung: [docs/ARCHITEKTUR.md](docs/ARCHITEKTU
 - [x] Oberfläche: Fragen mit Schalter Erklären/Sokratisch, Wissensbasis mit Upload für Lehrende
 - [x] Evals: Retrieval (Trefferquote, MRR) und Antworten (Absagen, sokratischer Modus, eigene Bewertung)
 - [x] Docker Compose (App und Ollama mit GPU), CI mit GitHub Actions (Tests, Ruff, Build der Oberfläche)
+- [x] Gesprächsverlauf: die letzten fünf Wortwechsel, Query Rewriting bei Folgefragen; im sokratischen Modus ein Dialog mit Schema auf Nachfrage, „Spicken“ zeigt auf Wunsch die Erklärung
 
 Wie sich das für den Betrieb an einer Hochschule erweitern ließe (vLLM, mehrere Kopien, gemeinsamer Index, Moodle über LTI), steht in [docs/ARCHITEKTUR.md](docs/ARCHITEKTUR.md#ausblick-betrieb-an-einer-hochschule).
 
@@ -122,6 +134,7 @@ curl -s localhost:8000/health
 |---|---|
 | `mode` | `erklaeren` (vollständige Erklärung) oder `sokratisch` (nur Hinweise, Musterlösungen ausgeblendet) |
 | `k` | Anzahl der Auszüge aus dem Buch, 1 bis 10 (Standard 5) |
+| `history` | optional: bisheriges Gespräch als Liste von `{"question": …, "answer": …}`, älteste zuerst, höchstens 5. Der Server speichert nichts |
 
 Die Antwort enthält den Text, die Quellen mit Link und Ähnlichkeitswert (`cited`: in der Antwort
 genannt), die Laufzeiten und die Zahl der Prompt-Token. Der Tutor prüft die Antwort des Modells,

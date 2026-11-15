@@ -22,11 +22,13 @@ function describe(detail) {
   return detail;
 }
 
-export function ask(question, mode) {
+// history: frühere Wortwechsel als [{ question, answer }], älteste zuerst.
+// Der Server speichert nichts; das Gedächtnis des Tutors liegt im Browser.
+export function ask(question, mode, history = []) {
   return request("/ask", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ question, mode }),
+    body: JSON.stringify({ question, mode, history }),
   });
 }
 

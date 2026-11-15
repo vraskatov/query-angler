@@ -12,7 +12,7 @@ from queryangler.guard import (  # noqa: F401  (für die Evals hier mit angebote
     leaked_keywords,
     meta_references,
 )
-from queryangler.prompt import Mode
+from queryangler.prompt import Mode, Turn
 
 GROUPS = ("im_buch", "nah_dran", "fremd", "sokratisch")
 
@@ -28,10 +28,17 @@ class Question:
     # Standard: sokratisch nur in der Gruppe "sokratisch". Absagen werden zusätzlich
     # im sokratischen Modus geprüft, weil die feste Form dort gegen die Absage drückt.
     mode: Mode | None = None
+    # Vorgegebenes Gespräch vor der Frage, als Liste von {question, answer}. Die Antworten
+    # des Tutors stehen fest im Test, damit jeder Lauf dieselbe Ausgangslage hat.
+    history: list[dict[str, str]] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         if self.mode is None:
             self.mode = "sokratisch" if self.group == "sokratisch" else "erklaeren"
+
+    @property
+    def turns(self) -> list[Turn]:
+        return [Turn(t["question"], t["answer"]) for t in self.history]
 
 
 def load_questions(path: Path) -> list[Question]:

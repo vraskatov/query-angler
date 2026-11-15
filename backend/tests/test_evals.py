@@ -173,3 +173,23 @@ def test_report_splits_faithfulness_by_retrieval_hit():
     assert "| Treue zur Quelle (0–2) | 1.33 (n=3: 1 Mensch, 2 Claude) |" in report
     assert "| … Treue, wenn Abschnitt gefunden | 2.00 (n=1: 1 Mensch, 0 Claude) |" in report
     assert "| … Treue, wenn Abschnitt nicht gefunden | 1.00 (n=2: 0 Mensch, 2 Claude) |" in report
+
+
+def test_dialog_questions_have_a_history_and_the_report_counts_them():
+    questions = load_questions(EVALS_DIR / "questions.toml")
+    dialogs = [q for q in questions if q.history]
+    assert dialogs and all(q.turns[0].answer for q in dialogs)
+
+    base = {"model": "m", "label": "m", "llm_seconds": 2.0, "group": "sokratisch"}
+    history = [{"question": "Wie zähle ich pro Ort mit GROUP BY?", "answer": "Hinweis: …"}]
+    rows = [
+        # GROUP BY hat der Lernende selbst genannt: kein Leck
+        {**base, "id": "a", "question": "Also so?", "history": history,
+         "answer": "Hinweis: Genau, GROUP BY fasst zusammen.\nFrage: Was zählst du?"},
+        {**base, "id": "b", "question": "Also so?", "history": history,
+         "answer": "Hinweis: Nimm COUNT.\nFrage: Was noch?"},
+        {**base, "id": "c", "question": "Wie sortiere ich?", "answer": "Hinweis: …\nFrage: …?"},
+    ]  # fmt: skip
+    report = _answers_report({"lauf": rows})
+    assert "| … davon im Dialog ohne Leck | 1/2 |" in report
+    assert "`a`" not in report.split("Auffällige")[1]

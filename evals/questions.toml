@@ -13,6 +13,9 @@
 # keywords_any:  Begriffe, von denen mindestens einer vorkommen muss.
 # mode:          optional "sokratisch" oder "erklaeren"; Standard: sokratisch nur in der
 #                Gruppe "sokratisch".
+# history:       optional ein vorgegebenes Gespräch vor der Frage, älteste zuerst, als
+#                [{question = "...", answer = "..."}]. Die Antworten des Tutors stehen fest,
+#                damit jeder Lauf dieselbe Ausgangslage hat.
 
 # --- Im Buch -----------------------------------------------------------------
 
@@ -162,6 +165,48 @@ group = "im_buch"
 question = "Wie runde ich eine Zahl auf zwei Nachkommastellen?"
 gold = ["Funktionen > Funktionen für Zahlen > CEILING, FLOOR, ROUND, TRUNCATE – die nächste ganze Zahl"]
 keywords_all = ["ROUND"]
+
+# Das Buch zeigt beide Wege, nennt FROM/WHERE "traditionell" und JOIN "modern". Ob die
+# Antwort JOIN nennt, hängt davon ab, welche Abschnitte das Retrieval findet: Die Einstufung
+# steht am Kapitelanfang, nicht neben dem alten Beispiel.
+[[question]]
+id = "drei-tabellen"
+group = "im_buch"
+question = "Wie verknüpfe ich drei Tabellen in einer Abfrage?"
+gold = [
+  "Arbeiten mit JOIN > INNER JOIN mehrerer Tabellen",
+  "Einfache Tabellenverknüpfung > Mehrere Tabellen verbinden",
+  "Mehrere Tabellen",
+]
+keywords_all = ["JOIN"]
+
+# Folgefrage: allein findet "Und mit drei Tabellen?" nichts, mit der vorigen Frage schon.
+[[question]]
+id = "folge-drei-tabellen"
+group = "im_buch"
+question = "Und wie geht das mit drei Tabellen?"
+history = [
+  { question = "Was macht ein INNER JOIN?", answer = "Ein INNER JOIN verknüpft zwei Tabellen und liefert nur die Zeilen, zu denen es in beiden Tabellen passende Werte gibt." },
+]
+gold = [
+  "Arbeiten mit JOIN > INNER JOIN mehrerer Tabellen",
+  "Einfache Tabellenverknüpfung > Mehrere Tabellen verbinden",
+  "Mehrere Tabellen",
+]
+keywords_all = ["JOIN"]
+
+# "Spicken": dieselbe dritte Runde wie s-dialog-syntax, aber im Modus Erklären. Die Suche
+# muss über die erste Frage beim Thema JOIN bleiben, die Antwort die Schreibweise zeigen.
+[[question]]
+id = "folge-spicken-syntax"
+group = "im_buch"
+question = "Mir fehlt die Syntax"
+history = [
+  { question = "Wie mache ich einen JOIN zwischen zwei Tabellen?", answer = "Hinweis: Zwei Tabellen lassen sich nur sinnvoll verbinden, wenn sie etwas gemeinsam haben.\nFrage: Welche Spalte kommt in beiden Tabellen vor?" },
+  { question = "Es gibt eine Spalte fahrzeug_id in beiden. Aber wie mache ich jetzt einen JOIN?", answer = "Hinweis: Du hast zwei Listen, die über eine gemeinsame Nummer zusammengehören.\nFrage: Welche Spalte in beiden Tabellen könnte diese Verbindung sein?" },
+]
+gold = ["Arbeiten mit JOIN", "Mehrere Tabellen", "Ausführliche SELECT-Struktur"]
+keywords_all = ["JOIN", "ON"]
 
 # --- Nah dran, aber nicht im Buch ---------------------------------------------
 
@@ -323,3 +368,77 @@ id = "s-gleiche-abteilung"
 group = "sokratisch"
 question = "Wie finde ich alle Mitarbeiter, die in derselben Abteilung arbeiten wie ein bestimmter Kollege?"
 gold = ["Unterabfragen", "Mehr zu JOIN > SELF JOIN – Verknüpfung mit sich selbst"]
+
+# Keine Aufgabe, kein konkretes Problem: Der Tutor soll zuerst nach der Aufgabe fragen,
+# statt einen Hinweis zu basteln (geprüft durch Lesen; automatisch nur Form und Leck).
+[[question]]
+id = "s-unklar"
+group = "sokratisch"
+question = "Hallo, ich habe ein Problem beim Zusammenführen von Tabellen."
+gold = ["Mehrere Tabellen", "Einfache Tabellenverknüpfung", "Arbeiten mit JOIN"]
+
+# Das Buch zeigt zwei Wege und empfiehlt JOIN. Der Hinweis soll zum empfohlenen Weg lenken
+# (JOIN darf fallen, die Frage nennt es), nicht fragen, welcher Weg "besser klingt".
+[[question]]
+id = "s-join-zwei-tabellen"
+group = "sokratisch"
+question = "Wie mache ich einen JOIN zwischen zwei Tabellen?"
+gold = ["Arbeiten mit JOIN", "Mehrere Tabellen"]
+
+# --- Sokratisch: Dialoge ---------------------------------------------------------
+# Zweite Runde eines Gesprächs. Der Tutor soll auf die Überlegung eingehen, ohne die
+# Lösung zu verraten. Begriffe, die die Lernenden selbst nennen, darf er aufgreifen.
+
+[[question]]
+id = "s-dialog-zusammenfassen"
+group = "sokratisch"
+question = "Die müssten irgendwie zusammengefasst werden, oder?"
+history = [
+  { question = "Wie zähle ich, wie viele Abteilungen es pro Ort gibt?", answer = "Hinweis: Du willst nicht jede Abteilung einzeln sehen, sondern für jeden Ort eine einzige Zahl.\nFrage: Was müsste mit allen Zeilen passieren, die zum selben Ort gehören, bevor du zählst?" },
+]
+gold = ["Gruppierungen > Gruppierung bei einer Tabelle"]
+
+[[question]]
+id = "s-dialog-falsch"
+group = "sokratisch"
+question = "Mit Name = 'M'?"
+history = [
+  { question = "Wie finde ich alle Mitarbeiter, deren Nachname mit M beginnt?", answer = "Hinweis: Du suchst nicht einen bestimmten Namen, sondern alle Namen, die auf eine bestimmte Weise anfangen.\nFrage: Wie könntest du ausdrücken, dass nach dem M beliebige weitere Buchstaben folgen dürfen?" },
+]
+gold = ["WHERE-Klausel im Detail > Eine einzelne Bedingung > LIKE – Ähnlichkeiten (1)"]
+
+[[question]]
+id = "s-dialog-selbst-genannt"
+group = "sokratisch"
+question = "Also mit GROUP BY Ort?"
+history = [
+  { question = "Wie zähle ich, wie viele Abteilungen es pro Ort gibt?", answer = "Hinweis: Du willst nicht jede Abteilung einzeln sehen, sondern für jeden Ort eine einzige Zahl.\nFrage: Was müsste mit allen Zeilen passieren, die zum selben Ort gehören, bevor du zählst?" },
+]
+gold = ["Gruppierungen > Gruppierung bei einer Tabelle"]
+
+# Dritte Runde: Der Lernende hat die Frage schon beantwortet (fahrzeug_id). Der Tutor soll
+# darauf eingehen statt sie zu wiederholen (geprüft durch Lesen), ohne die Lösung zu verraten.
+# Die Suche muss trotz "Mir fehlt die Syntax" beim Thema JOIN bleiben.
+[[question]]
+id = "s-dialog-syntax"
+group = "sokratisch"
+question = "Mir fehlt die Syntax"
+history = [
+  { question = "Wie mache ich einen JOIN zwischen zwei Tabellen?", answer = "Hinweis: Zwei Tabellen lassen sich nur sinnvoll verbinden, wenn sie etwas gemeinsam haben.\nFrage: Welche Spalte kommt in beiden Tabellen vor?" },
+  { question = "Es gibt eine Spalte fahrzeug_id in beiden. Aber wie mache ich jetzt einen JOIN?", answer = "Hinweis: Du hast zwei Listen, die über eine gemeinsame Nummer zusammengehören.\nFrage: Welche Spalte in beiden Tabellen könnte diese Verbindung sein?" },
+]
+gold = ["Arbeiten mit JOIN", "Mehrere Tabellen", "Ausführliche SELECT-Struktur"]
+
+# Der echte Dialog vom 15.11.: Der Lernende nennt nie "JOIN", sondern "zusammenführen".
+# Die umformulierte Suche muss trotzdem JOIN finden; der Tutor zeigt das Schema mit
+# Platzhaltern, ohne sales, fahrzeugarten oder fahrzeug_id einzusetzen.
+[[question]]
+id = "s-dialog-code"
+group = "sokratisch"
+question = "Das ist das Problem: Ich weiß nicht, wie man den Code schreibt."
+history = [
+  { question = "Hallo, ich habe ein Problem beim Zusammenführen von Tabellen.", answer = "Hinweis: Wenn du zwei Tabellen zusammenführen willst, brauchst du eine Regel, die sagt, welche Zeilen zusammengehören.\nFrage: Welche Information findest du in beiden Tabellen?" },
+  { question = "Bei mir ist das fahrzeug_id, sie kommt in der Tabelle sales und in der Tabelle fahrzeugarten vor.", answer = "Hinweis: Eine gemeinsame Spalte ist der Schlüssel, über den beide Tabellen zusammenpassen.\nFrage: Wann gehört eine Zeile aus der einen Tabelle zu einer Zeile aus der anderen?" },
+  { question = "Wahrscheinlich müsste ich schauen, ob dieselben Werte in beiden Spalten vorkommen?", answer = "Hinweis: Du hast richtig erkannt, dass gleiche Werte in der gemeinsamen Spalte die Zeilen verbinden.\nFrage: Wie würdest du der Datenbank diese Regel mitteilen?" },
+]
+gold = ["Arbeiten mit JOIN", "Mehrere Tabellen", "Ausführliche SELECT-Struktur"]

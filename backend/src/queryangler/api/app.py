@@ -24,7 +24,7 @@ from queryangler.components import load_retriever
 from queryangler.index.embedder import ModelUnavailableError
 from queryangler.index.store import IndexUnavailableError
 from queryangler.llm import LLMError, LLMTimeoutError, LLMUnavailableError, OpenAICompatibleClient
-from queryangler.prompt import Mode
+from queryangler.prompt import HISTORY_TURNS, Mode, Turn
 from queryangler.sources import MAX_BYTES, Source, SourceError, SourceManager
 from queryangler.tutor import Answer, Tutor
 
@@ -42,6 +42,11 @@ def build_default_tutor() -> Tutor:
     return Tutor(retriever, llm, context_tokens=config.LLM_CONTEXT_TOKENS)
 
 
+class HistoryTurn(BaseModel):
+    question: str = Field(max_length=1000)
+    answer: str = Field(max_length=8000)
+
+
 class AskRequest(BaseModel):
     question: str = Field(
         min_length=3,
@@ -50,6 +55,12 @@ class AskRequest(BaseModel):
     )
     mode: Mode = "erklaeren"
     k: int = Field(default=5, ge=1, le=10, description="Anzahl der Auszüge aus dem Buch")
+    history: list[HistoryTurn] = Field(
+        default_factory=list,
+        max_length=HISTORY_TURNS,
+        description="Bisheriges Gespräch, älteste zuerst. Der Server speichert nichts; "
+        "die Oberfläche schickt die letzten Wortwechsel bei jeder Frage mit.",
+    )
 
 
 class Health(BaseModel):
@@ -119,7 +130,8 @@ def create_app(
     @app.post("/ask", response_model=Answer)
     async def ask(body: AskRequest, tutor: Annotated[Tutor, Depends(get_tutor)]) -> Answer:
         try:
-            return await tutor.ask(body.question, mode=body.mode, k=body.k)
+            history = [Turn(t.question, t.answer) for t in body.history]
+            return await tutor.ask(body.question, mode=body.mode, k=body.k, history=history)
         except ValueError as error:  # z. B. eine Frage nur aus Leerzeichen
             raise HTTPException(422, str(error)) from error
         except LLMUnavailableError as error:
